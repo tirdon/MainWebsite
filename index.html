@@ -25,12 +25,9 @@
     <div id="branding">
       <img src="logo.png" alt="Logo" width="44" height="44" />
     </div>
-    <button class="theme-toggle" id="themeToggle" aria-label="Toggle dark mode">
-      <span class="toggle-icon sun">☀️</span>
-      <span class="toggle-icon moon">🌙</span>
-    </button>
-    <h1 id="title">curriculum vitae (interactivum)</h1>
-    <nav>
+    <h1 id="title"><span class="title-short">CV</span><span class="title-full">curriculum vitae (interactivum)</span>
+    </h1>
+    <nav id="mainNav">
       <ul>
         <li>
           <a href="#about">About <span class="latin">(De Me)</span></a>
@@ -55,12 +52,24 @@
         </li>
       </ul>
     </nav>
+    <div class="nav-actions">
+      <button class="theme-toggle" id="themeToggle" aria-label="Toggle dark mode">
+        <span class="toggle-icon sun">☀️</span>
+        <span class="toggle-icon moon">🌙</span>
+      </button>
+      <button class="hamburger" id="menuToggle" aria-label="Toggle menu" aria-expanded="false">
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
+    </div>
   </header>
+  <div class="nav-overlay" id="navOverlay"></div>
 
   <div class="main-content">
     <!-- ═══════════ HERO ═══════════ -->
     <div id="about" class="reveal">
-      <h1 id="name">Thiradon Mueangmo</h1>
+      <h1 id="name" data-text="Thiradon Mueangmo">Thiradon Mueangmo</h1>
       <p>
         Hello there! I am a Physicist with a passion for bridging the gap
         between theoretical sciences and software. My work spans from
@@ -216,7 +225,7 @@
         <!-- 2: Particle Gravity Simulation -->
         <span>
           <div class="physics-canvas-wrapper">
-            <h3>Particle Gravity</h3>
+            <h3>Particle Gravity</h3>//TODO: change the title to something more interesting and its simulation
             <canvas id="particleSim" class="physics-canvas"></canvas>
           </div>
         </span>
@@ -224,16 +233,16 @@
         <!-- 3: Double Pendulum Chaos -->
         <span>
           <div class="physics-canvas-wrapper">
-            <h3>Double Pendulum</h3>
+            <h3>Double Pendulum</h3>//TODO: make it more advanced like make rigid rod to spring
             <canvas id="pendulumSim" class="physics-canvas"></canvas>
           </div>
         </span>
 
-        <!-- 4: Boids Flocking -->
+        <!-- 4: Ising Model -->
         <span>
           <div class="physics-canvas-wrapper">
-            <h3>Boids Flocking</h3>
-            <canvas id="boidsSim" class="physics-canvas"></canvas>
+            <h3>Ising Model</h3>
+            <canvas id="isingSim" class="physics-canvas"></canvas>
           </div>
         </span>
 
@@ -245,18 +254,18 @@
           </div>
         </span>
 
-        <!-- 6: Wave Equation -->
+        <!-- 6: Reaction-Diffusion -->
         <span>
           <div class="physics-canvas-wrapper">
-            <h3>Coupled Oscillators</h3>
-            <canvas id="waveSim" class="physics-canvas"></canvas>
+            <h3>Reaction-Diffusion</h3>
+            <canvas id="reactionSim" class="physics-canvas"></canvas>
           </div>
         </span>
 
         <!-- 7: 1D Traffic Flow Dynamics -->
         <span>
           <div class="physics-canvas-wrapper">
-            <h3>Nonlinear Traffic Flow (1D)</h3>
+            <h3>Nonlinear Traffic Flow (1D)</h3>//TODO: the velocity seems constant, I can't see the traffic jam
             <canvas id="trafficSim" class="physics-canvas"></canvas>
           </div>
         </span>
@@ -301,8 +310,9 @@
           <span class="project-card-icon">🌿</span>
           <h3>IoT Irrigation Controller</h3>
           <p>
-            ESP32-C3 based smart irrigation system using Matter protocol, with
-            DHT22 sensors and IR remote control for home agriculture.
+            ESP32-C6 based smart irrigation system using Matter protocol, with
+            capacitive soil moisture sensor, DHT22 sensors and IR remote control
+            for home agriculture.
           </p>
           <div class="project-card-tags">
             <span>ESP32</span>
@@ -313,14 +323,13 @@
         </div>
         <div class="project-card">
           <span class="project-card-icon">🎬</span>
-          <h3>Manim ECS Framework</h3>
+          <h3>Storyboard ECS Framework</h3>
           <p>
             A WebGPU-powered mathematical animation engine inspired by
             3Blue1Brown's Manim, with entity-component-system architecture.
           </p>
           <div class="project-card-tags">
-            <span>JavaScript</span>
-            <span>WebGPU</span>
+            <span>JavaScript•WebGPU</span>
             <span>ECS</span>
           </div>
         </div>
@@ -332,8 +341,7 @@
             rotation, bend) and interactive controls powered by WebGPU.
           </p>
           <div class="project-card-tags">
-            <span>WebGPU</span>
-            <span>JavaScript</span>
+            <span>JavaScript•WebGPU</span>
             <span>Animation</span>
           </div>
         </div>
@@ -343,25 +351,28 @@
           <p>
             Bridging FreeRTOS C macros to Swift via C++ shims, enabling
             zero-overhead task notifications and GPIO ISRs on ESP32-C3.
+            Also targeting Raspberry Pi Pico W with Pico C/C++ SDK for lightweight embedded Swift networking.
           </p>
           <div class="project-card-tags">
             <span>Swift</span>
             <span>C++</span>
             <span>FreeRTOS</span>
             <span>RISC-V</span>
+            <span>ESP32-C3</span>
+            <span>RP2040</span>
           </div>
         </div>
         <div class="project-card">
-          <span class="project-card-icon">🧮</span>
+          <span class="project-card-icon">📈</span>
           <h3>Graphwar Parser</h3>
           <p>
             A WebAssembly-compatible parser for Graphwar utilizing Swift
             structured concurrency and JavaScriptKit for seamless JS interop.
           </p>
           <div class="project-card-tags">
-            <span>Swift</span>
+            <span>Swift•JavaScriptKit</span>
             <span>WebAssembly</span>
-            <span>JavaScriptKit</span>
+            <span>Interpreter</span>
           </div>
         </div>
         <div class="project-card">
@@ -373,9 +384,8 @@
             API.
           </p>
           <div class="project-card-tags">
-            <span>HTML5 Canvas</span>
-            <span>Physics</span>
-            <span>Dynamics</span>
+            <span>HTML5•Canvas</span>
+            <span>Physics•Dynamics</span>
           </div>
         </div>
       </div>
@@ -428,7 +438,7 @@
       <h2 id="contact">Contact <span class="latin">(Contactūs)</span></h2>
       <div id="footer">
         <span>
-          <a href="#about">
+          <a href="#contact">
             <svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="44" height="42" viewBox="0 0 44.5166 42.1436">
               <g>
                 <rect height="42.1436" opacity="0" width="44.5166" x="0" y="0" />
@@ -486,7 +496,7 @@
           </a>
         </span>
         <span>
-          <a href="">
+          <a href="https://www.linkedin.com/in/thiradon-mueangmo-45537b403/?isSelfProfile=true">
             <svg xmlns="http://www.w3.org/2000/svg" width="44" height="44" viewBox="0 0 48 48">
               <path fill="#0078d4"
                 d="M42,37c0,2.762-2.238,5-5,5H11c-2.761,0-5-2.238-5-5V11c0-2.762,2.239-5,5-5h26c2.762,0,5,2.238,5,5V37z">
@@ -505,7 +515,7 @@
           </a>
         </span>
         <span>
-          <a href="https://www.facebook.com/thirdon2544">
+          <a href="https://www.facebook.com/">
             <svg xmlns="http://www.w3.org/2000/svg" width="44" height="44" viewBox="0 0 48 48">
               <linearGradient id="Ld6sqrtcxMyckEl6xeDdMa_uLWV5A9vXIPu_gr1" x1="9.993" x2="40.615" y1="9.993" y2="40.615"
                 gradientUnits="userSpaceOnUse">

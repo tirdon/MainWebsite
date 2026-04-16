@@ -1,84 +1,169 @@
 <!DOCTYPE html>
-<html>
-  <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Page Not Found</title>
+<html lang="en" data-theme="light">
 
-    <style media="screen">
-      body { background: #ECEFF1; color: rgba(0,0,0,0.87); font-family: 'Times New Roman', Times, 'Latin Modern Roman', Helvetica; margin: 0; padding: 0; }
-      #message { background: white; max-width: 40em; margin: 100px auto 16px; padding: 32px 24px 16px; border-radius: 3px; }
-      #message h3 { color: #888; font-weight: normal; font-size: 16px; margin: 16px 0 12px; }
-      #message h2 { color: #fea1f0; font-weight: bold; font-size: 16px; margin: 0 0 8px; }
-      #message h1 { font-size: 22px; font-weight: 300; color: rgba(0,0,0,0.6); margin: 0 0 16px;}
-      #message p { line-height: 140%; margin: 16px 0 24px; font-size: 17px; }
-      @media (max-width: 600px) {
-        body, #message { margin-top: 0; background: white; box-shadow: none; }
-        body { border-top: 16px solid #ff6543; }
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>404 - Page Not Found</title>
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Syne:wght@700;800&display=swap"
+    rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/dreampulse/computer-modern-web-font@master/fonts.css" />
+
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    .poem {
+      max-width: 800px;
+      margin: 40px 0;
+      font-family: "Computer Modern Serif", "Latin Modern Roman", serif;
+      line-height: 2;
+    }
+
+    .poem br {
+      margin-bottom: 1em;
+      display: block;
+      content: "";
+    }
+
+    .poem-line {
+      display: flex;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 8px;
+    }
+
+    .poem-rhyme {
+      color: var(--text-secondary);
+      font-style: italic;
+    }
+
+    @media (max-width: 600px) {
+      .poem-line {
+        flex-direction: column;
+        gap: 0;
       }
-      @media (min-height: 450px) {
-        html body {
-          overflow: hidden;
-        }
-      }
-    </style>
-  </head>
-  <body>
-    <div id="message">
-      <h2>404</h2>
-      <h1>File Not Found</h1>
-      <p>
-        The vast expanse where cyberspace weaves,
-        <span style="text-align: right; float: right;">
-        a curious soul, in digital realms conceives.</span><br>
-        A journey embarked with a hopeful quest, 
-        <span style="text-align: right; float: right;">
-        yet, alas! A hiccup, a pause, a test.</span><br>
-        
-        404, a number that echoes in the void,
-        <span style="text-align: right; float: right;">
-        A page not found, a story left devoid.</span><br>
-        The pathways of code, like a maze untold,
-        <span style="text-align: right; float: right;">
-        A tale of links broken, a narrative unfold.</span><br>
-        
-        No pixels dance, no words to unfold,
-        <span style="text-align: right; float: right;">
-        A symphony of silence, a tale left cold.</span><br>
-        The binary whispers in the virtual air,
-        <span style="text-align: right; float: right;">
-        "Alas, the page you seek is not found there."</span><br>
-        
-        In the labyrinth of zeros and ones,
-        <span style="text-align: right; float: right;">
-        A traveler lost, seeking digital suns.</span><br>
-        The URL, a compass pointing astray,
-        <span style="text-align: right; float: right;">
-        A plea in code, asking, "Please find your way."</span><br>
-        
-        Oh, wayfarer of the web, fear not this plight,
-        <span style="text-align: right; float: right;">
-        In the bytes and bits, shadows take flight.</span><br>
-        For every lost page, a new one may bloom,
-        <span style="text-align: right; float: right;">
-        In the vast web's garden, where ideas loom.</span><br>
-        
-        404, a crossroads in the cyber expanse,
-        <span style="text-align: right; float: right;">
-        A poetic glitch, a momentary trance.</span><br>
-        Yet, in error's embrace, discovery may rise,
-        <span style="text-align: right; float: right;">
-        A chance to explore, beneath digital skies.</span><br>
-        
-        So, dear visitor, let not dismay be your guide,
-        <span style="text-align: right; float: right;">
-        In the tapestry of links, where journeys abide.</span><br>
-        For in the digital tapestry, a story's reborn,
-        <span style="text-align: right; float: right;">
-        As ones and zeros dance, a new page is sworn.</span><br>
-      </p>
-      <p>(The specified file was not found on this website. Please check the URL for mistakes and try again.)</p>
+    }
+  </style>
+</head>
+
+<body>
+  <!-- ═══════════ HEADER / NAV ═══════════ -->
+  <header class="container">
+    <div id="branding">
+      <a href="index.html">
+        <img src="logo.png" alt="Logo" width="38" height="38" />
+      </a>
+    </div>
+    <button class="theme-toggle" id="themeToggle" aria-label="Toggle dark mode">
+      <span class="toggle-icon sun">☀️</span>
+      <span class="toggle-icon moon">🌙</span>
+    </button>
+    <h1 id="title">Error 404 (Pagina deest)</h1>
+    <nav>
+      <ul>
+        <li><a href="index.html#about">About</a></li>
+        <li><a href="index.html#skills">Skills</a></li>
+        <li><a href="index.html#experience">Experience</a></li>
+        <li><a href="index.html#education">Education</a></li>
+        <li><a href="index.html#project">Projects</a></li>
+        <li><a href="index.html#contact">Contact</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <div class="main-content" style="display: flex; flex-direction: column; align-items: center; text-align: center;">
+    <div id="notfound" class="reveal">
+      <h1 id="name">404</h1>
+      <h2>File Not Found <span class="latin">(Documentum Non Inventum)</span></h2>
+
+      <div class="poem">
+        <div class="poem-line">
+          <span>The vast expanse where cyberspace weaves,</span>
+          <span class="poem-rhyme">a curious soul, in digital realms conceives.</span>
+        </div>
+        <div class="poem-line">
+          <span>A journey embarked with a hopeful quest,</span>
+          <span class="poem-rhyme">yet, alas! A hiccup, a pause, a test.</span>
+        </div>
+        <br>
+        <div class="poem-line">
+          <span>404, a number that echoes in the void,</span>
+          <span class="poem-rhyme">A page not found, a story left devoid.</span>
+        </div>
+        <div class="poem-line">
+          <span>The pathways of code, like a maze untold,</span>
+          <span class="poem-rhyme">A tale of links broken, a narrative unfold.</span>
+        </div>
+        <br>
+        <div class="poem-line">
+          <span>No pixels dance, no words to unfold,</span>
+          <span class="poem-rhyme">A symphony of silence, a tale left cold.</span>
+        </div>
+        <div class="poem-line">
+          <span>The binary whispers in the virtual air,</span>
+          <span class="poem-rhyme">"Alas, the page you seek is not found there."</span>
+        </div>
+        <br>
+        <div class="poem-line">
+          <span>In the labyrinth of zeros and ones,</span>
+          <span class="poem-rhyme">A traveler lost, seeking digital suns.</span>
+        </div>
+        <div class="poem-line">
+          <span>The URL, a compass pointing astray,</span>
+          <span class="poem-rhyme">A plea in code, asking, "Please find your way."</span>
+        </div>
+        <br>
+        <div class="poem-line">
+          <span>Oh, wayfarer of the web, fear not this plight,</span>
+          <span class="poem-rhyme">In the bytes and bits, shadows take flight.</span>
+        </div>
+        <div class="poem-line">
+          <span>For every lost page, a new one may bloom,</span>
+          <span class="poem-rhyme">In the vast web's garden, where ideas loom.</span>
+        </div>
+        <br>
+        <div class="poem-line">
+          <span>404, a crossroads in the cyber expanse,</span>
+          <span class="poem-rhyme">A poetic glitch, a momentary trance.</span>
+        </div>
+        <div class="poem-line">
+          <span>Yet, in error's embrace, discovery may rise,</span>
+          <span class="poem-rhyme">A chance to explore, beneath digital skies.</span>
+        </div>
+        <br>
+        <div class="poem-line">
+          <span>So, dear visitor, let not dismay be your guide,</span>
+          <span class="poem-rhyme">In the tapestry of links, where journeys abide.</span>
+        </div>
+        <div class="poem-line">
+          <span>For in the digital tapestry, a story's reborn,</span>
+          <span class="poem-rhyme">As ones and zeros dance, a new page is sworn.</span>
+        </div>
+      </div>
+
+      <p>The specified file was not found on this website. Please check the URL for mistakes and try again.</p>
 
     </div>
-  </body>
+  </div>
+
+  <!-- ═══════════ FOOTER ═══════════ -->
+  <footer class="reveal">
+    <div class="main-content" style="padding-top: 0; padding-bottom: 0">
+      <h2 id="contact">Contact <span class="latin">(Contactūs)</span></h2>
+      <div id="footer">
+        <span>
+          <a href="https://thiradonius.web.app">Website</a>
+        </span>
+      </div>
+    </div>
+  </footer>
+
+  <script src="main.js"></script>
+</body>
+
 </html>

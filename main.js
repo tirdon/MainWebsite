@@ -83,7 +83,7 @@
         }
       });
     },
-    { threshold: 0.25, rootMargin: "-10% 0px -70% 0px" }
+    { threshold: 0.05, rootMargin: "-10% 0px -70% 0px" }
   );
 
   const sections = document.querySelectorAll(".main-content > div[id], footer h2[id='contact']");
@@ -91,6 +91,48 @@
 })();
 
 
+
+// ────────────────────────────────────
+// Mobile Hamburger Menu
+// ────────────────────────────────────
+(function () {
+  const btn = document.getElementById("menuToggle");
+  const nav = document.getElementById("mainNav");
+  const overlay = document.getElementById("navOverlay");
+
+  function close() {
+    btn.classList.remove("open");
+    btn.setAttribute("aria-expanded", "false");
+    nav.classList.remove("open");
+    overlay.classList.remove("visible");
+    document.body.style.overflow = "";
+  }
+
+  btn.addEventListener("click", () => {
+    const opening = !nav.classList.contains("open");
+    if (opening) {
+      btn.classList.add("open");
+      btn.setAttribute("aria-expanded", "true");
+      nav.classList.add("open");
+      overlay.classList.add("visible");
+      document.body.style.overflow = "hidden";
+    } else {
+      close();
+    }
+  });
+
+  overlay.addEventListener("click", close);
+
+  // Close menu when a nav link is clicked
+  nav.querySelectorAll("a").forEach((link) => {
+    link.addEventListener("click", close);
+  });
+
+  // Close on Escape key
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && nav.classList.contains("open")) close();
+  });
+})();
 
 // ────────────────────────────────────
 // Smooth Scroll for Nav (fallback)
@@ -552,19 +594,23 @@ document.querySelectorAll('a[href^="#"]').forEach((a) => {
 })();
 
 // ════════════════════════════════════
-// PHYSICS SIM 4: Coupled Oscillators
+// PHYSICS SIM 4: Reaction-Diffusion (Gray-Scott)
 // ════════════════════════════════════
 (function () {
-  const canvas = document.getElementById("waveSim");
+  const canvas = document.getElementById("reactionSim");
   if (!canvas) return;
   const ctx = canvas.getContext("2d");
   let W, H;
 
-  const N = 40;
-  const y = new Float32Array(N);
-  const v = new Float32Array(N);
-  const k = 0.05; // coupling
-  const damp = 0.98;
+  const GW = 120, GH = 80;
+  let U, V, nU, nV;
+  const Du = 0.16, Dv = 0.08;
+  const f = 0.035, k = 0.065;
+
+  const off = document.createElement("canvas");
+  off.width = GW;
+  off.height = GH;
+  const offCtx = off.getContext("2d");
 
   function resize() {
     const rect = canvas.getBoundingClientRect();
@@ -576,58 +622,84 @@ document.querySelectorAll('a[href^="#"]').forEach((a) => {
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   }
 
+  function alloc() {
+    U = []; V = []; nU = []; nV = [];
+    for (let i = 0; i < GW; i++) {
+      U[i] = new Float32Array(GH);
+      V[i] = new Float32Array(GH);
+      nU[i] = new Float32Array(GH);
+      nV[i] = new Float32Array(GH);
+      for (let j = 0; j < GH; j++) U[i][j] = 1.0;
+    }
+  }
+
+  function seed(cx, cy) {
+    for (let di = -3; di <= 3; di++) {
+      for (let dj = -3; dj <= 3; dj++) {
+        const gi = ((cx + di + GW) % GW) | 0;
+        const gj = ((cy + dj + GH) % GH) | 0;
+        U[gi][gj] = 0.5;
+        V[gi][gj] = 0.25 + Math.random() * 0.01;
+      }
+    }
+  }
+
   function init() {
     resize();
-    for (let i = 0; i < N; i++) {
-      y[i] = 0;
-      v[i] = 0;
-    }
+    alloc();
+    seed(GW / 2, GH / 2);
+    seed(GW / 4, GH / 3);
+    seed((3 * GW) / 4, (2 * GH) / 3);
   }
 
   canvas.addEventListener("click", (e) => {
     const rect = canvas.getBoundingClientRect();
     const mx = e.clientX - rect.left;
-    const idx = Math.floor((mx / W) * N);
-    if (idx >= 0 && idx < N) {
-      y[idx] += 30; // drop a "stone"
-      if (idx > 0) y[idx - 1] += 15;
-      if (idx < N - 1) y[idx + 1] += 15;
-    }
+    const my = e.clientY - rect.top;
+    seed(((mx / W) * GW) | 0, ((my / H) * GH) | 0);
   });
 
   function loop() {
     const dark = document.documentElement.getAttribute("data-theme") === "dark";
 
-    for (let i = 1; i < N - 1; i++) {
-      const force = k * (y[i - 1] + y[i + 1] - 2 * y[i]);
-      const restore = -0.01 * y[i];
-      v[i] += force + restore;
-      v[i] *= damp;
-    }
-    for (let i = 1; i < N - 1; i++) {
-      y[i] += v[i];
+    for (let step = 0; step < 6; step++) {
+      for (let i = 0; i < GW; i++) {
+        const ip = (i + 1) % GW, im = (i - 1 + GW) % GW;
+        for (let j = 0; j < GH; j++) {
+          const jp = (j + 1) % GH, jm = (j - 1 + GH) % GH;
+          const lapU = U[ip][j] + U[im][j] + U[i][jp] + U[i][jm] - 4 * U[i][j];
+          const lapV = V[ip][j] + V[im][j] + V[i][jp] + V[i][jm] - 4 * V[i][j];
+          const uvv = U[i][j] * V[i][j] * V[i][j];
+          nU[i][j] = U[i][j] + Du * lapU - uvv + f * (1 - U[i][j]);
+          nV[i][j] = V[i][j] + Dv * lapV + uvv - (f + k) * V[i][j];
+        }
+      }
+      let t;
+      t = U; U = nU; nU = t;
+      t = V; V = nV; nV = t;
     }
 
-    ctx.clearRect(0, 0, W, H);
-
-    const step = W / (N - 1);
-    const oy = H / 2;
-
-    ctx.beginPath();
-    ctx.moveTo(0, oy + y[0]);
-    for (let i = 1; i < N; i++) {
-      ctx.lineTo(i * step, oy + y[i]);
+    const imageData = offCtx.createImageData(GW, GH);
+    const data = imageData.data;
+    for (let j = 0; j < GH; j++) {
+      for (let i = 0; i < GW; i++) {
+        const v = V[i][j];
+        const idx = (j * GW + i) * 4;
+        if (dark) {
+          data[idx]     = (v * 61) | 0;
+          data[idx + 1] = (v * 217 + (1 - v) * 20) | 0;
+          data[idx + 2] = (v * 193 + (1 - v) * 30) | 0;
+        } else {
+          data[idx]     = (v * 207 + (1 - v) * 245) | 0;
+          data[idx + 1] = (v * 107 + (1 - v) * 239) | 0;
+          data[idx + 2] = (v * 79 + (1 - v) * 230) | 0;
+        }
+        data[idx + 3] = 255;
+      }
     }
-    ctx.strokeStyle = dark ? "#3dd9c1" : "#1e6f5c";
-    ctx.lineWidth = 2;
-    ctx.stroke();
-
-    for (let i = 0; i < N; i++) {
-      ctx.beginPath();
-      ctx.arc(i * step, oy + y[i], 3, 0, Math.PI * 2);
-      ctx.fillStyle = dark ? "#FFFFFF" : "#000000";
-      ctx.fill();
-    }
+    offCtx.putImageData(imageData, 0, 0);
+    ctx.imageSmoothingEnabled = true;
+    ctx.drawImage(off, 0, 0, W, H);
 
     requestAnimationFrame(loop);
   }
@@ -638,16 +710,23 @@ document.querySelectorAll('a[href^="#"]').forEach((a) => {
 })();
 
 // ════════════════════════════════════
-// PHYSICS SIM 5: Boids Flocking
+// PHYSICS SIM 5: Ising Model (2D Spin Lattice)
 // ════════════════════════════════════
 (function () {
-  const canvas = document.getElementById("boidsSim");
+  const canvas = document.getElementById("isingSim");
   if (!canvas) return;
   const ctx = canvas.getContext("2d");
   let W, H;
 
-  const boids = [];
-  const NUM_BOIDS = 40;
+  const GRID = 64;
+  const spins = [];
+  let T = 2.27; // near critical temperature Tc ≈ 2.269
+  let tempMode = 1; // 0=cold, 1=critical, 2=hot
+
+  const off = document.createElement("canvas");
+  off.width = GRID;
+  off.height = GRID;
+  const offCtx = off.getContext("2d");
 
   function resize() {
     const rect = canvas.getBoundingClientRect();
@@ -659,136 +738,86 @@ document.querySelectorAll('a[href^="#"]').forEach((a) => {
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   }
 
-  class Boid {
-    constructor() {
-      this.x = Math.random() * W || 200;
-      this.y = Math.random() * H || 200;
-      const a = Math.random() * Math.PI * 2;
-      this.vx = Math.cos(a) * 2;
-      this.vy = Math.sin(a) * 2;
-      this.angle = a;
+  function init() {
+    resize();
+    spins.length = 0;
+    for (let i = 0; i < GRID; i++) {
+      spins[i] = new Int8Array(GRID);
+      for (let j = 0; j < GRID; j++) {
+        spins[i][j] = Math.random() < 0.5 ? 1 : -1;
+      }
     }
   }
 
-  function init() {
-    resize();
-    boids.length = 0;
-    for (let i = 0; i < NUM_BOIDS; i++) boids.push(new Boid());
-  }
+  // Click cycles temperature: cold → critical → hot
+  canvas.addEventListener("click", () => {
+    tempMode = (tempMode + 1) % 3;
+    T = [0.5, 2.27, 5.0][tempMode];
+  });
 
-  let targetX = null,
-    targetY = null;
+  let mouseX = null, mouseY = null;
   canvas.addEventListener("mousemove", (e) => {
     const rect = canvas.getBoundingClientRect();
-    targetX = e.clientX - rect.left;
-    targetY = e.clientY - rect.top;
+    mouseX = e.clientX - rect.left;
+    mouseY = e.clientY - rect.top;
   });
   canvas.addEventListener("mouseleave", () => {
-    targetX = null;
-    targetY = null;
-  });
-  canvas.addEventListener("click", () => {
-    boids.forEach((b) => {
-      b.vx += (Math.random() - 0.5) * 10;
-      b.vy += (Math.random() - 0.5) * 10;
-    });
+    mouseX = null;
+    mouseY = null;
   });
 
   function loop() {
     const dark = document.documentElement.getAttribute("data-theme") === "dark";
-    ctx.clearRect(0, 0, W, H);
+    const cellW = W / GRID;
+    const cellH = H / GRID;
 
-    const vLimit = 3;
+    // Metropolis-Hastings: one full sweep per frame
+    const steps = GRID * GRID;
+    for (let s = 0; s < steps; s++) {
+      const i = (Math.random() * GRID) | 0;
+      const j = (Math.random() * GRID) | 0;
 
-    for (let i = 0; i < NUM_BOIDS; i++) {
-      const b = boids[i];
-      let cx = 0,
-        cy = 0,
-        sx = 0,
-        sy = 0,
-        ax = 0,
-        ay = 0,
-        neighbors = 0;
-
-      for (let j = 0; j < NUM_BOIDS; j++) {
-        if (i === j) continue;
-        const o = boids[j];
-        const dx = o.x - b.x,
-          dy = o.y - b.y;
-        const dist2 = dx * dx + dy * dy;
-
-        if (dist2 < 4000) {
-          cx += o.x;
-          cy += o.y;
-          ax += o.vx;
-          ay += o.vy;
-          neighbors++;
-        }
-        if (dist2 < 400) {
-          sx -= dx;
-          sy -= dy;
-        }
+      // Mouse proximity heats spins locally
+      let localT = T;
+      if (mouseX !== null) {
+        const dx = (i + 0.5) * cellW - mouseX;
+        const dy = (j + 0.5) * cellH - mouseY;
+        if (dx * dx + dy * dy < 1600) localT = Math.max(localT, 5.0);
       }
 
-      let fx = 0,
-        fy = 0;
-      if (neighbors > 0) {
-        cx /= neighbors;
-        cy /= neighbors;
-        ax /= neighbors;
-        ay /= neighbors;
-        fx += (cx - b.x) * 0.005;
-        fx += (ax - b.vx) * 0.05; // alignment
-        fy += (cy - b.y) * 0.005; // cohesion
-        fy += (ay - b.vy) * 0.05;
+      const spin = spins[i][j];
+      const neighbors =
+        spins[(i + 1) % GRID][j] +
+        spins[(i - 1 + GRID) % GRID][j] +
+        spins[i][(j + 1) % GRID] +
+        spins[i][(j - 1 + GRID) % GRID];
+      const dE = 2 * spin * neighbors;
+
+      if (dE <= 0 || Math.random() < Math.exp(-dE / localT)) {
+        spins[i][j] = -spin;
       }
-      fx += sx * 0.05; // separation
-      fy += sy * 0.05;
-
-      if (targetX !== null) {
-        fx += (targetX - b.x) * 0.01;
-        fy += (targetY - b.y) * 0.01;
-      }
-
-      b.vx += fx;
-      b.vy += fy;
-
-      const speed = Math.sqrt(b.vx * b.vx + b.vy * b.vy);
-      if (speed > vLimit) {
-        b.vx = (b.vx / speed) * vLimit;
-        b.vy = (b.vy / speed) * vLimit;
-      }
-      if (speed < 1) {
-        b.vx = (b.vx / speed) * 1;
-        b.vy = (b.vy / speed) * 1;
-      }
-
-      b.x += b.vx;
-      b.y += b.vy;
-
-      if (b.x < 0) b.x += W;
-      if (b.x > W) b.x -= W;
-      if (b.y < 0) b.y += H;
-      if (b.y > H) b.y -= H;
-
-      const targetAngle = Math.atan2(b.vy, b.vx);
-      let diff = targetAngle - b.angle;
-      while (diff > Math.PI) diff -= Math.PI * 2;
-      while (diff < -Math.PI) diff += Math.PI * 2;
-      b.angle += diff * 0.15; // Smooth realignment animation
-
-      ctx.save();
-      ctx.translate(b.x, b.y);
-      ctx.rotate(b.angle);
-      ctx.beginPath();
-      ctx.moveTo(6, 0);
-      ctx.lineTo(-4, 3);
-      ctx.lineTo(-4, -3);
-      ctx.closePath();
-      ctx.fillStyle = dark ? "#e8944a" : "#cf6b4f";
-      ctx.fill();
-      ctx.restore();
     }
+
+    // Render to offscreen canvas at grid resolution, then scale up
+    const imageData = offCtx.createImageData(GRID, GRID);
+    const data = imageData.data;
+    const upR = dark ? 232 : 207, upG = dark ? 148 : 107, upB = dark ? 74 : 79;
+    const dnR = dark ? 26 : 245, dnG = dark ? 26 : 239, dnB = dark ? 46 : 230;
+
+    for (let j = 0; j < GRID; j++) {
+      for (let i = 0; i < GRID; i++) {
+        const idx = (j * GRID + i) * 4;
+        if (spins[i][j] === 1) {
+          data[idx] = upR; data[idx + 1] = upG; data[idx + 2] = upB;
+        } else {
+          data[idx] = dnR; data[idx + 1] = dnG; data[idx + 2] = dnB;
+        }
+        data[idx + 3] = 255;
+      }
+    }
+    offCtx.putImageData(imageData, 0, 0);
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(off, 0, 0, W, H);
 
     requestAnimationFrame(loop);
   }
