@@ -1,0 +1,532 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Thiradon Mueangmo — Curriculum Vitae</title>
+  <meta name="description"
+    content="Interactive curriculum vitae of Thiradon Mueangmo – Physics graduate, programmer, and maker." />
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Syne:wght@700;800&display=swap"
+    rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/dreampulse/computer-modern-web-font@master/fonts.css" />
+
+  <link rel="stylesheet" href="styles.css" />
+</head>
+
+<body>
+  <!-- ═══════════ HEADER / NAV ═══════════ -->
+  <header class="container">
+    <div id="branding">
+      <img src="logo.png" alt="Logo" width="44" height="44" />
+    </div>
+    <button class="theme-toggle" id="themeToggle" aria-label="Toggle dark mode">
+      <span class="toggle-icon sun">☀️</span>
+      <span class="toggle-icon moon">🌙</span>
+    </button>
+    <h1 id="title">curriculum vitae (interactivum)</h1>
+    <nav>
+      <ul>
+        <li>
+          <a href="#about">About <span class="latin">(De Me)</span></a>
+        </li>
+        <li>
+          <a href="#skills">Skills <span class="latin">(Peritia)</span></a>
+        </li>
+        <li>
+          <a href="#experience">Experience <span class="latin">(Experientia)</span></a>
+        </li>
+        <li>
+          <a href="#education">Education <span class="latin">(Educatio)</span></a>
+        </li>
+        <li>
+          <a href="#project">Projects <span class="latin">(Propositum)</span></a>
+        </li>
+        <li>
+          <a href="#hobbies">Hobbies <span class="latin">(Oblectamentum)</span></a>
+        </li>
+        <li>
+          <a href="#contact">Contact <span class="latin">(Contactus)</span></a>
+        </li>
+      </ul>
+    </nav>
+  </header>
+
+  <div class="main-content">
+    <!-- ═══════════ HERO ═══════════ -->
+    <div id="about" class="reveal">
+      <h1 id="name">Thiradon Mueangmo</h1>
+      <p>
+        Hello there! I am a Physicist with a passion for bridging the gap
+        between theoretical sciences and software. My work spans from
+        low-level embedded systems (like ESP32 and Raspberry Pi pico w) to
+        high-performance graphic rendering using WebGPU and native Canvas
+        APIs. I am deeply interested in nonlinear dynamics, chaos theory, and
+        computationally recreating complex physical phenomena through elegant,
+        immersive user interfaces.
+      </p>
+    </div>
+
+    <!-- ═══════════ SKILLS ═══════════ -->
+    <div id="skills" class="reveal">
+      <h2>Expertise <span class="latin">(Peritiae)</span></h2>
+      <span id="example">
+        <!-- 1: Animated Skill Bars -->
+        <span>
+          <div class="skill-category">
+            <h3>Languages</h3>
+            <div class="skill-item">
+              <div class="skill-label">
+                <span>Thai</span><span>Native</span>
+              </div>
+              <div class="skill-bar">
+                <div class="skill-bar-fill" data-width="100"></div>
+              </div>
+            </div>
+            <div class="skill-item">
+              <div class="skill-label">
+                <span>English</span><span>Proficient</span>
+              </div>
+              <div class="skill-bar">
+                <div class="skill-bar-fill" data-width="70"></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="skill-category" style="margin-top: 20px">
+            <h3>Programming</h3>
+            <div class="skill-item">
+              <div class="skill-label">
+                <span>Swift</span><span>Advanced</span>
+              </div>
+              <div class="skill-bar">
+                <div class="skill-bar-fill" data-width="88"></div>
+              </div>
+            </div>
+            <div class="skill-item">
+              <div class="skill-label">
+                <span>C / C++</span><span>Advanced</span>
+              </div>
+              <div class="skill-bar">
+                <div class="skill-bar-fill" data-width="75"></div>
+              </div>
+            </div>
+            <div class="skill-item">
+              <div class="skill-label">
+                <span>Python</span><span>Proficient</span>
+              </div>
+              <div class="skill-bar">
+                <div class="skill-bar-fill" data-width="68"></div>
+              </div>
+            </div>
+            <div class="skill-item">
+              <div class="skill-label">
+                <span>JavaScript</span><span>Proficient</span>
+              </div>
+              <div class="skill-bar">
+                <div class="skill-bar-fill" data-width="62"></div>
+              </div>
+            </div>
+            <div class="skill-item">
+              <div class="skill-label">
+                <span>Julia</span><span>Intermediate</span>
+              </div>
+              <div class="skill-bar">
+                <div class="skill-bar-fill" data-width="50"></div>
+              </div>
+            </div>
+            <div class="skill-item">
+              <div class="skill-label">
+                <span>Wolfram Language</span><span>Intermediate</span>
+              </div>
+              <div class="skill-bar">
+                <div class="skill-bar-fill" data-width="55"></div>
+              </div>
+            </div>
+            <div class="skill-item">
+              <div class="skill-label">
+                <span>SQL</span><span>Intermediate</span>
+              </div>
+              <div class="skill-bar">
+                <div class="skill-bar-fill" data-width="55"></div>
+              </div>
+            </div>
+            <div class="skill-item">
+              <div class="skill-label">
+                <span>Markup</span><span>Proficient</span>
+              </div>
+              <div class="skill-bar">
+                <div class="skill-bar-fill" data-width="70"></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="skill-category" style="margin-top: 20px">
+            <h3>Frameworks / APIs</h3>
+            <div class="skill-item">
+              <div class="skill-label"><span>Manim</span></div>
+              <div class="skill-bar">
+                <div class="skill-bar-fill" data-width="82"></div>
+              </div>
+            </div>
+            <div class="skill-item">
+              <div class="skill-label"><span>CUDA</span></div>
+              <div class="skill-bar">
+                <div class="skill-bar-fill" data-width="65"></div>
+              </div>
+            </div>
+            <div class="skill-item">
+              <div class="skill-label"><span>Metal API</span></div>
+              <div class="skill-bar">
+                <div class="skill-bar-fill" data-width="70"></div>
+              </div>
+            </div>
+            <div class="skill-item">
+              <div class="skill-label"><span>Web API</span></div>
+              <div class="skill-bar">
+                <div class="skill-bar-fill" data-width="72"></div>
+              </div>
+            </div>
+            <div class="skill-item">
+              <div class="skill-label"><span>SwiftUI</span></div>
+              <div class="skill-bar">
+                <div class="skill-bar-fill" data-width="80"></div>
+              </div>
+            </div>
+            <div class="skill-item">
+              <div class="skill-label"><span>Bun</span></div>
+              <div class="skill-bar">
+                <div class="skill-bar-fill" data-width="68"></div>
+              </div>
+            </div>
+            <div class="skill-item">
+              <div class="skill-label"><span>Hummingbird (Swift)</span></div>
+              <div class="skill-bar">
+                <div class="skill-bar-fill" data-width="60"></div>
+              </div>
+            </div>
+          </div>
+        </span>
+
+        <!-- 2: Particle Gravity Simulation -->
+        <span>
+          <div class="physics-canvas-wrapper">
+            <h3>Particle Gravity</h3>
+            <canvas id="particleSim" class="physics-canvas"></canvas>
+          </div>
+        </span>
+
+        <!-- 3: Double Pendulum Chaos -->
+        <span>
+          <div class="physics-canvas-wrapper">
+            <h3>Double Pendulum</h3>
+            <canvas id="pendulumSim" class="physics-canvas"></canvas>
+          </div>
+        </span>
+
+        <!-- 4: Boids Flocking -->
+        <span>
+          <div class="physics-canvas-wrapper">
+            <h3>Boids Flocking</h3>
+            <canvas id="boidsSim" class="physics-canvas"></canvas>
+          </div>
+        </span>
+
+        <!-- 5: Lorenz Attractor -->
+        <span>
+          <div class="physics-canvas-wrapper">
+            <h3>Lorenz Attractor</h3>
+            <canvas id="lorenzSim" class="physics-canvas"></canvas>
+          </div>
+        </span>
+
+        <!-- 6: Wave Equation -->
+        <span>
+          <div class="physics-canvas-wrapper">
+            <h3>Coupled Oscillators</h3>
+            <canvas id="waveSim" class="physics-canvas"></canvas>
+          </div>
+        </span>
+
+        <!-- 7: 1D Traffic Flow Dynamics -->
+        <span>
+          <div class="physics-canvas-wrapper">
+            <h3>Nonlinear Traffic Flow (1D)</h3>
+            <canvas id="trafficSim" class="physics-canvas"></canvas>
+          </div>
+        </span>
+      </span>
+    </div>
+
+    <!-- ═══════════ EXPERIENCE ═══════════ -->
+    <div id="experience" class="reveal">
+      <h2>Experience <span class="latin">(Experientia)</span></h2>
+      <div class="empty-state">&mdash; Adventūra mox incipit &mdash;</div>
+    </div>
+
+    <!-- ═══════════ EDUCATION ═══════════ -->
+    <div id="education" class="reveal">
+      <h2>Education <span class="latin">(Educatio)</span></h2>
+      <ol>
+        <li>
+          <strong>Bachelor of Science in Physics, Mahidol University.</strong><br />
+          <em>August 2020 – May 2024</em>
+        </li>
+      </ol>
+    </div>
+
+    <!-- ═══════════ PROJECTS ═══════════ -->
+    <div id="project" class="reveal">
+      <h2>Interests <span class="latin">(Interessatus sum)</span></h2>
+      <div id="interest">
+        <span>
+          <p>dynamics and chaos</p>
+        </span>
+        <span>
+          <p>game theory</p>
+        </span>
+        <span>
+          <p>immersion</p>
+        </span>
+      </div>
+
+      <h2>Projects <span class="latin">(Propositum)</span></h2>
+      <div class="project-cards">
+        <div class="project-card">
+          <span class="project-card-icon">🌿</span>
+          <h3>IoT Irrigation Controller</h3>
+          <p>
+            ESP32-C3 based smart irrigation system using Matter protocol, with
+            DHT22 sensors and IR remote control for home agriculture.
+          </p>
+          <div class="project-card-tags">
+            <span>ESP32</span>
+            <span>Swift</span>
+            <span>FreeRTOS</span>
+            <span>Matter</span>
+          </div>
+        </div>
+        <div class="project-card">
+          <span class="project-card-icon">🎬</span>
+          <h3>Manim ECS Framework</h3>
+          <p>
+            A WebGPU-powered mathematical animation engine inspired by
+            3Blue1Brown's Manim, with entity-component-system architecture.
+          </p>
+          <div class="project-card-tags">
+            <span>JavaScript</span>
+            <span>WebGPU</span>
+            <span>ECS</span>
+          </div>
+        </div>
+        <div class="project-card">
+          <span class="project-card-icon">🎭</span>
+          <h3>Character Deformer</h3>
+          <p>
+            Real-time 2D character animation with mesh deformers (warp,
+            rotation, bend) and interactive controls powered by WebGPU.
+          </p>
+          <div class="project-card-tags">
+            <span>WebGPU</span>
+            <span>JavaScript</span>
+            <span>Animation</span>
+          </div>
+        </div>
+        <div class="project-card">
+          <span class="project-card-icon">⚙️</span>
+          <h3>Embedded Swift Interop</h3>
+          <p>
+            Bridging FreeRTOS C macros to Swift via C++ shims, enabling
+            zero-overhead task notifications and GPIO ISRs on ESP32-C3.
+          </p>
+          <div class="project-card-tags">
+            <span>Swift</span>
+            <span>C++</span>
+            <span>FreeRTOS</span>
+            <span>RISC-V</span>
+          </div>
+        </div>
+        <div class="project-card">
+          <span class="project-card-icon">🧮</span>
+          <h3>Graphwar Parser</h3>
+          <p>
+            A WebAssembly-compatible parser for Graphwar utilizing Swift
+            structured concurrency and JavaScriptKit for seamless JS interop.
+          </p>
+          <div class="project-card-tags">
+            <span>Swift</span>
+            <span>WebAssembly</span>
+            <span>JavaScriptKit</span>
+          </div>
+        </div>
+        <div class="project-card">
+          <span class="project-card-icon">⚛️</span>
+          <h3>Interactive Physics UI</h3>
+          <p>
+            A dynamically rendered portfolio featuring custom fluid, chaos,
+            and flocking simulations built from scratch on the HTML5 Canvas
+            API.
+          </p>
+          <div class="project-card-tags">
+            <span>HTML5 Canvas</span>
+            <span>Physics</span>
+            <span>Dynamics</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════ HOBBIES ═══════════ -->
+    <div id="hobbies" class="reveal">
+      <h2>Hobbies <span class="latin">(Oblectamenta)</span></h2>
+      <ol>
+        <li>🌱 I have made some IoT in agriculture at home.</li>
+        <li>🎧 I usually listen to audiobooks.</li>
+        <li>🇯🇵 I learn Japanese.</li>
+      </ol>
+    </div>
+
+    <!-- ═══════════ ABOUT / DATA PERSONALIA ═══════════ -->
+    <div id="personal-data" class="reveal">
+      <h2>Personal Data <span class="latin">(Data Personalia)</span></h2>
+      <ul>
+        <li>
+          <strong>Name <span class="latin">(Nomen)</span>:</strong> Thiradon
+          Mueangmo
+        </li>
+        <li>
+          <strong>Date of Birth
+            <span class="latin">(Dies Nativitatis)</span>:</strong>
+          Thursday, July 2001
+        </li>
+        <li>
+          <strong>Place of Birth
+            <span class="latin">(Locus Nativitatis)</span>:</strong>
+          Phrae, Thailand
+        </li>
+        <li>
+          <strong>Nationality <span class="latin">(Civitas)</span>:</strong>
+          Thai
+        </li>
+        <li>
+          <strong>Address <span class="latin">(Oratio)</span>:</strong> Mae
+          Lai, Mueang Phrae, Phrae
+        </li>
+      </ul>
+    </div>
+  </div>
+  <!-- .main-content -->
+
+  <!-- ═══════════ FOOTER ═══════════ -->
+  <footer class="reveal">
+    <div class="main-content" style="padding-top: 0; padding-bottom: 0">
+      <h2 id="contact">Contact <span class="latin">(Contactūs)</span></h2>
+      <div id="footer">
+        <span>
+          <a href="#about">
+            <svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="44" height="42" viewBox="0 0 44.5166 42.1436">
+              <g>
+                <rect height="42.1436" opacity="0" width="44.5166" x="0" y="0" />
+                <path
+                  d="M26.8945 36.6504L17.2412 36.6504L17.2412 23.9795C17.2412 23.1592 17.7832 22.6318 18.6035 22.6318L25.5469 22.6318C26.3672 22.6318 26.8945 23.1592 26.8945 23.9795ZM5.5957 35.2881C5.5957 37.7783 7.08984 39.2432 9.60938 39.2432L34.585 39.2432C37.1045 39.2432 38.5986 37.7783 38.5986 35.2881L38.5986 19.541L23.2471 6.66504C22.5 6.03516 21.6504 6.06445 20.9326 6.66504L5.5957 19.5264ZM0 18.2373C0 18.8965 0.512695 19.5117 1.3916 19.5117C1.83105 19.5117 2.19727 19.2773 2.51953 18.999L21.3867 3.17871C21.8262 2.7832 22.3389 2.75391 22.8223 3.17871L41.6455 18.999C41.9824 19.2773 42.334 19.5117 42.7881 19.5117C43.5498 19.5117 44.1504 19.043 44.1504 18.2812C44.1504 17.7979 43.9893 17.4609 43.6377 17.168L24.2285 0.834961C22.9102-0.27832 21.3135-0.27832 19.9805 0.834961L0.527344 17.168C0.161133 17.4609 0 17.8564 0 18.2373ZM34.292 10.3418L38.5986 13.9893L38.5986 5.27344C38.5986 4.54102 38.1152 4.07227 37.3828 4.07227L35.5225 4.07227C34.79 4.07227 34.292 4.54102 34.292 5.27344Z"
+                  fill="#5ac8f5" />
+              </g>
+            </svg>
+            Address
+          </a>
+        </span>
+        <span>
+          <a href="#contact">
+            <svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="35" height="35" viewBox="0 0 35.127 35.8447">
+              <g>
+                <rect height="35.8447" opacity="0" width="35.127" x="0" y="0" />
+                <path
+                  d="M9.44824 26.3379C14.7803 31.6699 21.3721 35.8447 26.792 35.8447C29.2383 35.8447 31.377 34.9951 33.1055 33.1201C34.0723 32.0508 34.7607 30.7471 34.7607 29.458C34.7607 28.5498 34.4092 27.6562 33.501 27.0264L27.7148 22.9395C26.9092 22.3535 26.1768 22.0605 25.5029 22.0605C24.668 22.0605 23.877 22.5293 22.998 23.3789L21.6357 24.7266C21.4307 24.9316 21.1816 25.0049 20.918 25.0049C20.6543 25.0049 20.3906 24.9023 20.1855 24.8145C19.0576 24.2139 17.0215 22.5586 15.1318 20.6543C13.2275 18.7646 11.5576 16.7578 10.9863 15.6006C10.8838 15.3955 10.7959 15.1465 10.7959 14.8828C10.7959 14.6484 10.8691 14.4141 11.0742 14.1943L12.4072 12.8027C13.2568 11.9092 13.7256 11.1182 13.7256 10.2832C13.7256 9.59473 13.4326 8.8916 12.8467 8.05664L8.84766 2.41699C8.17383 1.47949 7.23633 1.08398 6.22559 1.08398C5.00977 1.08398 3.73535 1.65527 2.62207 2.72461C0.805664 4.49707 0 6.66504 0 9.05273C0 14.4873 4.10156 21.0059 9.44824 26.3379Z"
+                  fill="#32d74b" />
+              </g>
+            </svg>
+            +66 unavailable
+          </a>
+        </span>
+        <span>
+          <a href="https://thiradonius.web.app">
+            <svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="57" height="43" viewBox="0 0 57.4365 43.2861">
+              <g>
+                <rect height="43.2861" opacity="0" width="57.4365" x="0" y="0" />
+                <path
+                  d="M47.6221 21.6357C47.6221 32.0654 38.9795 40.708 28.5352 40.708C25.7982 40.708 23.1843 40.1128 20.8242 39.0338C21.3118 38.4615 21.7431 37.8406 22.1086 37.1793C22.7889 37.4703 23.4933 37.7132 24.2231 37.8896C23.6754 37.3707 23.1601 36.7426 22.6848 36.0167C23.0884 35.0713 23.3699 34.065 23.4984 33.015C24.575 35.4217 25.9635 37.1222 27.4658 37.661L27.4658 31.2006C26.0802 31.23 24.7924 31.3519 23.6092 31.5581C23.6132 31.5325 23.6133 31.506 23.6133 31.4795C23.6133 30.7817 23.5516 30.0974 23.4219 29.4356C24.7029 29.2186 26.0598 29.0821 27.4658 29.036L27.4658 22.7051L21.3386 22.7051C21.3511 23.39 21.3937 24.0634 21.4584 24.7236C20.165 22.8732 18.3519 21.4112 16.2381 20.5518L19.1448 20.5518C19.2126 17.8325 19.5764 15.3376 20.1696 13.1494C18.3378 12.5801 16.7731 11.8205 15.5841 10.9181C13.5548 13.3624 12.1965 16.3795 11.8163 19.6733C11.8131 19.6729 11.8099 19.6729 11.8066 19.6729C11.0361 19.6729 10.2817 19.7484 9.55221 19.8973C10.4372 10.2483 18.6763 2.54883 28.5205 2.54883C38.9648 2.54883 47.6221 11.1914 47.6221 21.6357ZM32.8538 37.8894C35.5489 37.1826 37.9828 35.7999 39.9632 33.9347C38.958 33.2221 37.7191 32.6424 36.2701 32.2103C35.3952 34.6335 34.2194 36.5772 32.8538 37.8894ZM29.6191 37.6568C31.387 37.0137 32.9924 34.7775 34.1147 31.6685C32.7533 31.3992 31.2523 31.2383 29.6191 31.2009ZM37.928 22.7051C37.8662 25.4617 37.4982 27.9899 36.8943 30.2039C38.7065 30.7647 40.2575 31.5114 41.441 32.399C43.6871 29.7303 45.1239 26.3677 45.3404 22.7051ZM29.6191 22.7051L29.6191 29.0366C31.4289 29.0963 33.1562 29.3052 34.7438 29.6428C35.3083 27.5528 35.663 25.1851 35.7318 22.7051ZM21.3405 20.5518L27.4658 20.5518L27.4658 14.3233C25.641 14.2635 23.8988 14.0515 22.2992 13.7078C21.757 15.7582 21.4135 18.0854 21.3405 20.5518ZM29.6191 14.3228L29.6191 20.5518L35.73 20.5518C35.6573 18.0861 35.3153 15.7596 34.7747 13.7095C33.1789 14.0514 31.4409 14.2627 29.6191 14.3228ZM36.9042 13.1524C37.4957 15.3399 37.858 17.8337 37.9256 20.5518L45.3396 20.5518C45.1219 16.9188 43.7048 13.583 41.4928 10.9238C40.3031 11.8254 38.7375 12.584 36.9042 13.1524ZM22.9224 11.681C24.2965 11.9572 25.8142 12.1213 27.4658 12.1587L27.4658 5.63522C25.6775 6.26745 24.0496 8.50975 22.9224 11.681ZM29.6191 12.1584C31.2679 12.1206 32.7821 11.9571 34.1529 11.6824C33.0303 8.51706 31.4079 6.27699 29.6191 5.63928ZM36.2871 11.144C37.7562 10.7039 39.0092 10.1123 40.0225 9.38476C38.015 7.47723 35.5376 6.06601 32.7922 5.35497C34.1941 6.67377 35.3974 8.65866 36.2871 11.144ZM17.0523 9.37794C18.0656 10.1071 19.3191 10.7002 20.7882 11.1414C21.6816 8.65056 22.89 6.66262 24.2959 5.34475C21.5441 6.05168 19.062 7.46476 17.0523 9.37794Z"
+                  fill="#ff375f" />
+                <path
+                  d="M11.8066 40.957C16.9482 40.957 21.2842 36.665 21.2842 31.4795C21.2842 26.2793 17.0068 22.002 11.8066 22.002C6.62109 22.002 2.3291 26.2939 2.3291 31.4795C2.3291 36.6943 6.62109 40.957 11.8066 40.957Z"
+                  fill="#ff375f" />
+                <path
+                  d="M13.7109 37.1045C13.3594 37.4268 12.7441 37.4268 12.334 37.0605L7.51465 32.4756C6.91406 31.9189 6.85547 31.1426 7.51465 30.5273L12.334 25.9424C12.7441 25.5615 13.3008 25.5615 13.6523 25.8984C14.0479 26.2646 14.0771 26.8799 13.6816 27.2607L9.22852 31.4941L13.6816 35.7422C14.1064 36.123 14.0918 36.7383 13.7109 37.1045Z"
+                  fill="#ffffff" />
+              </g>
+            </svg>
+            thiradonius.web.app
+          </a>
+        </span>
+        <span>
+          <a href="mailto:thiradon.mue@student.mahidol.ac.th">
+            <svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="44" height="34" viewBox="0 0 44.751 34.4385">
+              <g>
+                <rect height="34.4385" opacity="0" width="44.751" x="0" y="0" />
+                <path
+                  d="M44.3848 5.6543L44.3848 28.7988C44.3848 32.5195 42.4658 34.4385 38.6719 34.4385L5.69824 34.4385C1.91895 34.4385 0 32.5488 0 28.7988L0 5.6543C0 1.9043 1.91895 0 5.69824 0L38.6719 0C42.4658 0 44.3848 1.91895 44.3848 5.6543ZM7.63184 9.02344C5.81543 9.02344 4.90723 9.93164 4.90723 11.7041L4.90723 22.7783C4.90723 24.5508 5.81543 25.459 7.63184 25.459L18.6182 25.459C20.4346 25.459 21.3428 24.5361 21.3428 22.7783L21.3428 11.7041C21.3428 9.94629 20.4346 9.02344 18.6182 9.02344ZM24.3311 17.2412C24.3311 22.0459 27.5537 25.2979 32.3291 25.2979C33.6475 25.2979 34.834 25.1514 35.5371 24.873C36.0059 24.668 36.2842 24.3896 36.2842 23.9502C36.2842 23.4961 35.9766 23.1592 35.5078 23.1592C35.3027 23.1592 35.1123 23.2031 34.79 23.2617C34.2334 23.3643 33.6768 23.5547 32.5049 23.5547C28.6084 23.5547 26.1475 21.123 26.1475 17.2559C26.1475 13.5059 28.667 10.8838 32.2852 10.8838C35.8887 10.8838 38.335 13.1689 38.335 16.5527C38.335 18.6768 37.7051 19.9072 36.665 19.9072C35.9766 19.9072 35.6689 19.5703 35.6689 18.8525L35.6689 13.9307C35.6689 13.4033 35.3027 13.0078 34.8047 13.0078C34.4092 13.0078 34.043 13.3008 33.9551 13.6523L33.9551 13.9307C33.4717 13.3594 32.7686 13.0078 31.8311 13.0078C29.751 13.0078 28.3008 14.7949 28.3008 17.2852C28.3008 19.8486 29.751 21.5771 31.875 21.5771C32.8711 21.5771 33.7061 21.1377 34.2627 20.3467C34.6729 21.1377 35.5078 21.5918 36.5186 21.5918C38.6719 21.5918 40.0488 19.585 40.0488 16.4648C40.0488 12.1729 36.8555 9.16992 32.2852 9.16992C27.5977 9.16992 24.3311 12.4805 24.3311 17.2412ZM19.1016 23.8037L7.16309 23.8037C7.63184 22.0898 9.71191 20.1709 13.1396 20.1709C16.5527 20.1709 18.6475 22.0898 19.1016 23.8037ZM33.999 17.1973C33.999 18.8232 33.2666 19.834 32.1094 19.834C30.9375 19.834 30.2051 18.8525 30.2051 17.2559C30.2051 15.6885 30.9668 14.707 32.124 14.707C33.2812 14.707 33.999 15.6445 33.999 17.1973ZM16.2012 15.3955C16.2012 17.2998 14.8389 18.7646 13.125 18.7646C11.4111 18.7646 10.0488 17.2998 10.0488 15.3955C10.0488 13.5791 11.4111 12.0996 13.125 12.0996C14.8389 12.0996 16.2012 13.5791 16.2012 15.3955Z"
+                  fill="#ff9f0a" />
+              </g>
+            </svg>
+            alumni.mahidol
+          </a>
+        </span>
+        <span>
+          <a href="">
+            <svg xmlns="http://www.w3.org/2000/svg" width="44" height="44" viewBox="0 0 48 48">
+              <path fill="#0078d4"
+                d="M42,37c0,2.762-2.238,5-5,5H11c-2.761,0-5-2.238-5-5V11c0-2.762,2.239-5,5-5h26c2.762,0,5,2.238,5,5V37z">
+              </path>
+              <path
+                d="M30,37V26.901c0-1.689-0.819-2.698-2.192-2.698c-0.815,0-1.414,0.459-1.779,1.364c-0.017,0.064-0.041,0.325-0.031,1.114L26,37h-7V18h7v1.061C27.022,18.356,28.275,18,29.738,18c4.547,0,7.261,3.093,7.261,8.274L37,37H30z M11,37V18h3.457C12.454,18,11,16.528,11,14.499C11,12.472,12.478,11,14.514,11c2.012,0,3.445,1.431,3.486,3.479C18,16.523,16.521,18,14.485,18H18v19H11z"
+                opacity=".05"></path>
+              <path
+                d="M30.5,36.5v-9.599c0-1.973-1.031-3.198-2.692-3.198c-1.295,0-1.935,0.912-2.243,1.677c-0.082,0.199-0.071,0.989-0.067,1.326L25.5,36.5h-6v-18h6v1.638c0.795-0.823,2.075-1.638,4.238-1.638c4.233,0,6.761,2.906,6.761,7.774L36.5,36.5H30.5z M11.5,36.5v-18h6v18H11.5z M14.457,17.5c-1.713,0-2.957-1.262-2.957-3.001c0-1.738,1.268-2.999,3.014-2.999c1.724,0,2.951,1.229,2.986,2.989c0,1.749-1.268,3.011-3.015,3.011H14.457z"
+                opacity=".07"></path>
+              <path fill="#fff"
+                d="M12,19h5v17h-5V19z M14.485,17h-0.028C12.965,17,12,15.888,12,14.499C12,13.08,12.995,12,14.514,12c1.521,0,2.458,1.08,2.486,2.499C17,15.887,16.035,17,14.485,17z M36,36h-5v-9.099c0-2.198-1.225-3.698-3.192-3.698c-1.501,0-2.313,1.012-2.707,1.99C24.957,25.543,25,26.511,25,27v9h-5V19h5v2.616C25.721,20.5,26.85,19,29.738,19c3.578,0,6.261,2.25,6.261,7.274L36,36L36,36z">
+              </path>
+            </svg>
+            Thiradon Mueangmo
+          </a>
+        </span>
+        <span>
+          <a href="https://www.facebook.com/thirdon2544">
+            <svg xmlns="http://www.w3.org/2000/svg" width="44" height="44" viewBox="0 0 48 48">
+              <linearGradient id="Ld6sqrtcxMyckEl6xeDdMa_uLWV5A9vXIPu_gr1" x1="9.993" x2="40.615" y1="9.993" y2="40.615"
+                gradientUnits="userSpaceOnUse">
+                <stop offset="0" stop-color="#2aa4f4"></stop>
+                <stop offset="1" stop-color="#007ad9"></stop>
+              </linearGradient>
+              <path fill="url(#Ld6sqrtcxMyckEl6xeDdMa_uLWV5A9vXIPu_gr1)"
+                d="M24,4C12.954,4,4,12.954,4,24s8.954,20,20,20s20-8.954,20-20S35.046,4,24,4z"></path>
+              <path fill="#fff"
+                d="M26.707,29.301h5.176l0.813-5.258h-5.989v-2.874c0-2.184,0.714-4.121,2.757-4.121h3.283V12.46 c-0.577-0.078-1.797-0.248-4.102-0.248c-4.814,0-7.636,2.542-7.636,8.334v3.498H16.06v5.258h4.948v14.452 C21.988,43.9,22.981,44,24,44c0.921,0,1.82-0.084,2.707-0.204V29.301z">
+              </path>
+            </svg>
+            Thiradon Mueangmo
+          </a>
+        </span>
+      </div>
+    </div>
+  </footer>
+
+  <!-- ═══════════ SCRIPTS ═══════════ -->
+  <script src="main.js"></script>
+</body>
+
+</html>
