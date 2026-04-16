@@ -68,17 +68,19 @@
 
   <div class="main-content">
     <!-- ═══════════ HERO ═══════════ -->
-    <div id="about" class="reveal">
-      <h1 id="name" data-text="Thiradon Mueangmo">Thiradon Mueangmo</h1>
-      <p>
-        Hello there! I am a Physicist with a passion for bridging the gap
-        between theoretical sciences and software. My work spans from
-        low-level embedded systems (like ESP32 and Raspberry Pi pico w) to
-        high-performance graphic rendering using WebGPU and native Canvas
-        APIs. I am deeply interested in nonlinear dynamics, chaos theory, and
-        computationally recreating complex physical phenomena through elegant,
-        immersive user interfaces.
-      </p>
+    <div id="about" class="apple-scroll-section">
+      <div class="apple-scroll-sticky">
+        <h1 id="name" data-text="Thiradon Mueangmo">Thiradon Mueangmo</h1>
+        <p class="apple-text-reveal">
+          Hello there! I am a Physicist with a passion for bridging the gap
+          between theoretical sciences and software. My work spans from
+          low-level embedded systems (like ESP32 and Raspberry Pi pico w) to
+          high-performance graphic rendering using WebGPU and native Canvas
+          APIs. I am deeply interested in nonlinear dynamics, chaos theory, and
+          computationally recreating complex physical phenomena through elegant,
+          immersive user interfaces.
+        </p>
+      </div>
     </div>
 
     <!-- ═══════════ SKILLS ═══════════ -->
@@ -107,7 +109,7 @@
             </div>
           </div>
 
-          <div class="skill-category" style="margin-top: 20px">
+          <div class="skill-category">
             <h3>Programming</h3>
             <div class="skill-item">
               <div class="skill-label">
@@ -175,7 +177,7 @@
             </div>
           </div>
 
-          <div class="skill-category" style="margin-top: 20px">
+          <div class="skill-category">
             <h3>Frameworks / APIs</h3>
             <div class="skill-item">
               <div class="skill-label"><span>Manim</span></div>
@@ -222,19 +224,19 @@
           </div>
         </span>
 
-        <!-- 2: Particle Gravity Simulation -->
+        <!-- 2: Coulomb Charges -->
         <span>
           <div class="physics-canvas-wrapper">
-            <h3>Particle Gravity</h3>//TODO: change the title to something more interesting and its simulation
-            <canvas id="particleSim" class="physics-canvas"></canvas>
+            <h3>2D Wave Dynamics</h3>
+            <canvas id="waveSim" class="physics-canvas"></canvas>
           </div>
         </span>
 
-        <!-- 3: Double Pendulum Chaos -->
+        <!-- 3: Elastic Double Pendulum -->
         <span>
           <div class="physics-canvas-wrapper">
-            <h3>Double Pendulum</h3>//TODO: make it more advanced like make rigid rod to spring
-            <canvas id="pendulumSim" class="physics-canvas"></canvas>
+            <h3>Elastic Double Pendulum</h3>
+            <canvas id="springPendSim" class="physics-canvas"></canvas>
           </div>
         </span>
 
@@ -265,7 +267,7 @@
         <!-- 7: 1D Traffic Flow Dynamics -->
         <span>
           <div class="physics-canvas-wrapper">
-            <h3>Nonlinear Traffic Flow (1D)</h3>//TODO: the velocity seems constant, I can't see the traffic jam
+            <h3>Nonlinear Traffic Flow (1D)</h3>
             <canvas id="trafficSim" class="physics-canvas"></canvas>
           </div>
         </span>
@@ -305,89 +307,105 @@
       </div>
 
       <h2>Projects <span class="latin">(Propositum)</span></h2>
-      <div class="project-cards">
-        <div class="project-card">
-          <span class="project-card-icon">🌿</span>
-          <h3>IoT Irrigation Controller</h3>
-          <p>
-            ESP32-C6 based smart irrigation system using Matter protocol, with
-            capacitive soil moisture sensor, DHT22 sensors and IR remote control
-            for home agriculture.
-          </p>
-          <div class="project-card-tags">
-            <span>ESP32</span>
-            <span>Swift</span>
-            <span>FreeRTOS</span>
-            <span>Matter</span>
+      <div class="project-carousel" id="projectCarousel">
+        <button class="carousel-arrow carousel-arrow-prev" id="carouselPrev" aria-label="Previous project">
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+            <path d="M12.5 15L7.5 10L12.5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+              stroke-linejoin="round" />
+          </svg>
+        </button>
+        <button class="carousel-arrow carousel-arrow-next" id="carouselNext" aria-label="Next project">
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+            <path d="M7.5 15L12.5 10L7.5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+              stroke-linejoin="round" />
+          </svg>
+        </button>
+        <div class="project-cards" id="projectTrack">
+          <div class="project-card">
+            <span class="project-card-icon">🌿</span>
+            <h3>IoT Irrigation Controller</h3>
+            <p>
+              ESP32-C6 based smart irrigation system using Matter protocol, with
+              capacitive soil moisture sensor, DHT22 sensors and IR remote control
+              for home agriculture.
+            </p>
+            <div class="project-card-tags">
+              <span>ESP32</span>
+              <span>Swift</span>
+              <span>FreeRTOS</span>
+              <span>Matter</span>
+            </div>
+          </div>
+          <div class="project-card">
+            <span class="project-card-icon">🎬</span>
+            <h3>Storyboard ECS Framework</h3>
+            <p>
+              A WebGPU-powered mathematical animation engine inspired by
+              3Blue1Brown's Manim, with entity-component-system architecture.
+            </p>
+            <div class="project-card-tags">
+              <span>JavaScript•WebGPU</span>
+              <span>ECS</span>
+            </div>
+          </div>
+          <div class="project-card">
+            <span class="project-card-icon">🎭</span>
+            <h3>Character Deformer</h3>
+            <p>
+              Real-time 2D character animation with mesh deformers (warp,
+              rotation, bend) and interactive controls powered by WebGPU.
+            </p>
+            <div class="project-card-tags">
+              <span>JavaScript•WebGPU</span>
+              <span>Animation</span>
+            </div>
+          </div>
+          <div class="project-card">
+            <span class="project-card-icon">⚙️</span>
+            <h3>Embedded Swift Interop</h3>
+            <p>
+              Bridging FreeRTOS C macros to Swift via C++ shims, enabling
+              zero-overhead task notifications and GPIO ISRs on ESP32-C3.
+              Also targeting Raspberry Pi Pico W with Pico C/C++ SDK for lightweight embedded Swift networking.
+            </p>
+            <div class="project-card-tags">
+              <span>Swift</span>
+              <span>C++</span>
+              <span>FreeRTOS</span>
+              <span>RISC-V</span>
+              <span>ESP32-C3</span>
+              <span>RP2040</span>
+            </div>
+          </div>
+          <div class="project-card">
+            <span class="project-card-icon">📈</span>
+            <h3>Graphwar Parser</h3>
+            <p>
+              A WebAssembly-compatible parser for Graphwar utilizing Swift
+              structured concurrency and JavaScriptKit for seamless JS interop.
+            </p>
+            <div class="project-card-tags">
+              <span>Swift•JavaScriptKit</span>
+              <span>WebAssembly</span>
+              <span>Interpreter</span>
+            </div>
+          </div>
+          <div class="project-card">
+            <span class="project-card-icon">⚛️</span>
+            <h3>Interactive Physics UI</h3>
+            <p>
+              A dynamically rendered portfolio featuring custom fluid, chaos,
+              and flocking simulations built from scratch on the HTML5 Canvas
+              API.
+            </p>
+            <div class="project-card-tags">
+              <span>HTML5•Canvas</span>
+              <span>Physics•Dynamics</span>
+            </div>
           </div>
         </div>
-        <div class="project-card">
-          <span class="project-card-icon">🎬</span>
-          <h3>Storyboard ECS Framework</h3>
-          <p>
-            A WebGPU-powered mathematical animation engine inspired by
-            3Blue1Brown's Manim, with entity-component-system architecture.
-          </p>
-          <div class="project-card-tags">
-            <span>JavaScript•WebGPU</span>
-            <span>ECS</span>
-          </div>
-        </div>
-        <div class="project-card">
-          <span class="project-card-icon">🎭</span>
-          <h3>Character Deformer</h3>
-          <p>
-            Real-time 2D character animation with mesh deformers (warp,
-            rotation, bend) and interactive controls powered by WebGPU.
-          </p>
-          <div class="project-card-tags">
-            <span>JavaScript•WebGPU</span>
-            <span>Animation</span>
-          </div>
-        </div>
-        <div class="project-card">
-          <span class="project-card-icon">⚙️</span>
-          <h3>Embedded Swift Interop</h3>
-          <p>
-            Bridging FreeRTOS C macros to Swift via C++ shims, enabling
-            zero-overhead task notifications and GPIO ISRs on ESP32-C3.
-            Also targeting Raspberry Pi Pico W with Pico C/C++ SDK for lightweight embedded Swift networking.
-          </p>
-          <div class="project-card-tags">
-            <span>Swift</span>
-            <span>C++</span>
-            <span>FreeRTOS</span>
-            <span>RISC-V</span>
-            <span>ESP32-C3</span>
-            <span>RP2040</span>
-          </div>
-        </div>
-        <div class="project-card">
-          <span class="project-card-icon">📈</span>
-          <h3>Graphwar Parser</h3>
-          <p>
-            A WebAssembly-compatible parser for Graphwar utilizing Swift
-            structured concurrency and JavaScriptKit for seamless JS interop.
-          </p>
-          <div class="project-card-tags">
-            <span>Swift•JavaScriptKit</span>
-            <span>WebAssembly</span>
-            <span>Interpreter</span>
-          </div>
-        </div>
-        <div class="project-card">
-          <span class="project-card-icon">⚛️</span>
-          <h3>Interactive Physics UI</h3>
-          <p>
-            A dynamically rendered portfolio featuring custom fluid, chaos,
-            and flocking simulations built from scratch on the HTML5 Canvas
-            API.
-          </p>
-          <div class="project-card-tags">
-            <span>HTML5•Canvas</span>
-            <span>Physics•Dynamics</span>
-          </div>
-        </div>
+        <div class="carousel-dots" id="carouselDots"></div>
+        <div class="carousel-counter" id="carouselCounter"></div>
       </div>
     </div>
 

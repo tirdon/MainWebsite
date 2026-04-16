@@ -425,12 +425,32 @@ a:hover {
 }
 
 /* ══════════════════════════════════════════════
-   Hero / About Section
+   Hero / About Section — Apple-style Scroll Animation
    ══════════════════════════════════════════════ */
-#about {
-  padding: 40px 0 60px;
+
+/* Tall outer container gives scroll distance for animation */
+.apple-scroll-section {
+  position: relative;
+  height: 250vh;
+  padding: 0;
 }
 
+/* Sticky inner content stays pinned at center while scrolling through */
+.apple-scroll-sticky {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 0 40px;
+  max-width: 1200px;
+  margin: 0 auto;
+  will-change: transform;
+}
+
+/* ── Cinematic Name Entrance ── */
 #about #name {
   font-size: 4rem;
   font-weight: 800;
@@ -439,7 +459,12 @@ a:hover {
   line-height: 1.1;
   position: relative;
   color: transparent;
-  animation: fadeInUp 1s cubic-bezier(0.165, 0.84, 0.44, 1);
+  /* Driven by --name-progress (0 → 1) set via JS */
+  opacity: var(--name-opacity, 0);
+  transform: scale(var(--name-scale, 1.15)) translateY(var(--name-ty, 40px));
+  filter: blur(var(--name-blur, 12px));
+  transition: none;
+  will-change: transform, opacity, filter;
 }
 
 #about #name::before {
@@ -455,6 +480,41 @@ a:hover {
   -webkit-text-fill-color: transparent;
   background-clip: text;
   animation: gradientShift 8s ease infinite;
+}
+
+/* ── Word-by-Word Apple Text Reveal ── */
+.apple-text-reveal {
+  font-size: 1.2rem;
+  color: var(--text-secondary);
+  margin-top: 32px;
+  padding-left: 24px;
+  border-left: 4px solid var(--accent-1);
+  max-width: 800px;
+  line-height: 1.9;
+  /* Start hidden until JS processes it */
+  opacity: var(--text-block-opacity, 0);
+  transform: translateY(var(--text-block-ty, 20px));
+  will-change: transform, opacity;
+  transition: none;
+}
+
+.apple-text-reveal .word {
+  display: inline-block;
+  opacity: var(--word-opacity, 0.12);
+  filter: blur(var(--word-blur, 1px));
+  transition: opacity 0.15s ease, filter 0.15s ease;
+  will-change: opacity, filter;
+  margin-right: 0.22em;
+}
+
+.apple-text-reveal .word.revealed {
+  opacity: 1;
+  filter: blur(0px);
+}
+
+.apple-text-reveal .word.near {
+  opacity: 0.4;
+  filter: blur(0.3px);
 }
 
 #about ul {
@@ -483,16 +543,6 @@ a:hover {
 #about ul li strong {
   color: var(--accent-1);
   font-weight: 700;
-}
-
-#about > p {
-  font-size: 1.2rem;
-  color: var(--text-secondary);
-  margin-top: 32px;
-  padding-left: 24px;
-  border-left: 4px solid var(--accent-1);
-  max-width: 800px;
-  line-height: 1.9;
 }
 
 /* ══════════════════════════════════════════════
@@ -762,90 +812,309 @@ footer h2::after,
   box-shadow: var(--shadow-md);
 }
 
-/* Project Cards Grid */
-.project-cards {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-  gap: 24px;
-  margin-top: 24px;
+/* ══════════════════════════════════════════════
+   Project Cards — Swipe Carousel (Apple-style)
+   ══════════════════════════════════════════════ */
+
+/* Carousel wrapper */
+.project-carousel {
+  position: relative;
+  margin-top: 32px;
+  /* let arrows sit outside on large screens */
 }
 
+/* Horizontal scroll track */
+.project-cards {
+  display: flex;
+  gap: 24px;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+  /* Enough side padding so first & last cards can be centered */
+  padding: 20px calc(50% - min(240px, 42.5vw)) 40px;
+  /* hide scrollbar across browsers */
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.project-cards::-webkit-scrollbar {
+  display: none;
+}
+
+/* Individual card */
 .project-card {
+  flex: 0 0 min(480px, 85vw);
+  scroll-snap-align: center;
   background: var(--bg-card);
-  border-radius: 20px;
-  padding: 32px;
+  border-radius: 28px;
+  padding: 40px 36px 36px;
   border: 1px solid var(--border-color);
   box-shadow: var(--shadow-sm);
-  transition: all 0.5s cubic-bezier(0.165, 0.84, 0.44, 1);
   position: relative;
   overflow: hidden;
   display: flex;
   flex-direction: column;
+  cursor: grab;
+  user-select: none;
+  transition:
+    transform 0.5s cubic-bezier(0.23, 1, 0.32, 1),
+    box-shadow 0.5s cubic-bezier(0.23, 1, 0.32, 1),
+    opacity 0.5s cubic-bezier(0.23, 1, 0.32, 1),
+    border-color 0.4s ease;
+  will-change: transform, opacity;
 }
 
+.project-card:active {
+  cursor: grabbing;
+}
+
+/* Gradient accent strip on top */
 .project-card::before {
   content: "";
   position: absolute;
   top: 0;
   left: 0;
   right: 0;
-  height: 5px;
+  height: 4px;
   background: var(--accent-gradient);
-  opacity: 0;
-  transition: opacity 0.4s ease;
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.6s cubic-bezier(0.23, 1, 0.32, 1);
 }
 
-.project-card:hover {
-  box-shadow: var(--shadow-lg);
-  transform: translateY(-8px);
-  border-color: var(--accent-1);
-}
-
-.project-card:hover::before {
+/* Active card highlight — applied via JS */
+.project-card.card-active {
+  transform: scale(1);
   opacity: 1;
+  box-shadow:
+    0 12px 40px rgba(0, 0, 0, 0.08),
+    0 2px 12px rgba(0, 0, 0, 0.04);
 }
 
+.project-card.card-active::before {
+  transform: scaleX(1);
+}
+
+[data-theme="dark"] .project-card.card-active {
+  box-shadow:
+    0 12px 40px rgba(0, 0, 0, 0.35),
+    0 2px 12px rgba(0, 0, 0, 0.2);
+}
+
+/* Non-active cards recede */
+.project-card:not(.card-active) {
+  transform: scale(0.92);
+  opacity: 0.5;
+}
+
+/* Icon */
 .project-card-icon {
-  font-size: 2.2rem;
-  margin-bottom: 16px;
-  display: block;
-}
-
-.project-card h3 {
-  font-size: 1.25rem;
-  font-weight: 800;
-  margin-bottom: 12px;
-  color: var(--text-primary);
-  letter-spacing: -0.3px;
-}
-
-.project-card p {
-  font-size: 0.95rem;
-  color: var(--text-secondary);
-  line-height: 1.7;
+  font-size: 2.8rem;
   margin-bottom: 20px;
-  flex-grow: 1;
+  display: block;
+  line-height: 1;
+  transition: transform 0.5s cubic-bezier(0.23, 1, 0.32, 1);
 }
 
+.project-card.card-active .project-card-icon {
+  transform: scale(1.08);
+}
+
+/* Title */
+.project-card h3 {
+  font-size: 1.35rem;
+  font-weight: 700;
+  margin-bottom: 10px;
+  color: var(--text-primary);
+  letter-spacing: -0.4px;
+  line-height: 1.3;
+  transition: color 0.3s ease;
+}
+
+.project-card.card-active h3 {
+  color: var(--accent-1);
+}
+
+/* Description */
+.project-card p {
+  font-size: 0.94rem;
+  color: var(--text-secondary);
+  line-height: 1.72;
+  margin-bottom: 24px;
+  flex-grow: 1;
+  letter-spacing: 0.01em;
+}
+
+/* Tags */
 .project-card-tags {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+  margin-top: auto;
 }
 
 .project-card-tags span {
-  padding: 4px 12px;
+  padding: 5px 14px;
   background: var(--skill-track);
-  border-radius: 20px;
-  font-size: 0.8rem;
+  border-radius: 100px;
+  font-size: 0.78rem;
   font-weight: 600;
   color: var(--text-secondary);
-  transition: all 0.3s ease;
+  letter-spacing: 0.02em;
+  transition:
+    background 0.4s cubic-bezier(0.23, 1, 0.32, 1),
+    color 0.4s cubic-bezier(0.23, 1, 0.32, 1);
 }
 
-.project-card:hover .project-card-tags span {
+.project-card.card-active .project-card-tags span {
   background: var(--accent-1);
   color: white;
+}
+
+/* ── Arrow Buttons ── */
+.carousel-arrow {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-70%);
+  z-index: 10;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  border: 1px solid var(--border-color);
+  background: var(--glass-bg);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  color: var(--text-primary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition:
+    transform 0.3s cubic-bezier(0.23, 1, 0.32, 1),
+    box-shadow 0.3s ease,
+    opacity 0.3s ease,
+    background 0.3s ease;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+}
+
+.carousel-arrow:hover {
+  transform: translateY(-70%) scale(1.1);
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.1);
+  background: var(--bg-card);
+}
+
+.carousel-arrow:active {
+  transform: translateY(-70%) scale(0.95);
+}
+
+.carousel-arrow:disabled {
+  opacity: 0.25;
+  pointer-events: none;
+}
+
+.carousel-arrow-prev {
+  left: -16px;
+}
+
+.carousel-arrow-next {
+  right: -16px;
+}
+
+/* ── Dot / Capsule Indicators ── */
+.carousel-dots {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+  flex-wrap: wrap;
+}
+
+.carousel-dot {
+  height: 12px;
+  min-width: 12px;
+  border-radius: 100px;
+  border: none;
+  background: var(--text-muted);
+  cursor: pointer;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  transition:
+    min-width 0.5s cubic-bezier(0.23, 1, 0.32, 1),
+    padding 0.5s cubic-bezier(0.23, 1, 0.32, 1),
+    background 0.4s ease,
+    box-shadow 0.4s ease;
+}
+
+.carousel-dot .dot-label {
+  font-size: 0;
+  opacity: 0;
+  white-space: nowrap;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: white;
+  transition:
+    font-size 0.4s cubic-bezier(0.23, 1, 0.32, 1),
+    opacity 0.35s ease;
+  pointer-events: none;
+}
+
+.carousel-dot:hover {
+  background: var(--text-secondary);
+}
+
+.carousel-dot.active {
+  background: var(--accent-1);
+  padding: 0 16px;
+  min-width: 12px;
+  height: 32px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+}
+
+.carousel-dot.active .dot-label {
+  font-size: 0.78rem;
+  opacity: 1;
+}
+
+/* ── Counter (e.g. "1 / 6") ── */
+.carousel-counter {
+  text-align: center;
+  margin-top: 12px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  letter-spacing: 0.08em;
+}
+
+/* ── Responsive ── */
+@media (max-width: 800px) {
+  .project-card {
+    flex: 0 0 min(400px, 82vw);
+    border-radius: 22px;
+    padding: 32px 28px 28px;
+  }
+
+  .carousel-arrow {
+    width: 40px;
+    height: 40px;
+  }
+
+  .carousel-arrow-prev { left: -6px; }
+  .carousel-arrow-next { right: -6px; }
+}
+
+@media (max-width: 500px) {
+  .project-card {
+    flex: 0 0 88vw;
+  }
+
+  .carousel-arrow {
+    display: none;
+  }
 }
 
 /* ══════════════════════════════════════════════
@@ -1077,12 +1346,20 @@ footer #footer span:hover svg {
 
 @media (max-width: 600px) {
 
+  .apple-scroll-section {
+    height: 200vh;
+  }
+
+  .apple-scroll-sticky {
+    padding: 0 20px;
+  }
+
   #about #name {
     font-size: 2rem;
     letter-spacing: -1px;
   }
 
-  #about > p {
+  .apple-text-reveal {
     font-size: 1.1rem;
     padding-left: 16px;
   }

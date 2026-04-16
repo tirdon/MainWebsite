@@ -1,7 +1,7 @@
 // ────────────────────────────────────
 // Dark / Light Theme Toggle
 // ────────────────────────────────────
-(function () {
+(() => {
   const toggle = document.getElementById("themeToggle");
   const html = document.documentElement;
   const saved = localStorage.getItem("theme");
@@ -18,9 +18,27 @@
 })();
 
 // ────────────────────────────────────
+// Shared Simulation Helpers
+// ────────────────────────────────────
+function isDark() {
+  return document.documentElement.getAttribute("data-theme") === "dark";
+}
+
+function resizeCanvas(canvas) {
+  const rect = canvas.getBoundingClientRect();
+  const dpr = window.devicePixelRatio || 1;
+  const W = rect.width;
+  const H = rect.height;
+  canvas.width = W * dpr;
+  canvas.height = H * dpr;
+  canvas.getContext("2d").setTransform(dpr, 0, 0, dpr, 0, 0);
+  return { W, H };
+}
+
+// ────────────────────────────────────
 // Navbar Scroll Enhancement
 // ────────────────────────────────────
-(function () {
+(() => {
   const nav = document.querySelector(".container");
   let ticking = false;
   window.addEventListener("scroll", () => {
@@ -90,6 +108,126 @@
   sections.forEach((section) => spyObserver.observe(section));
 })();
 
+// ────────────────────────────────────
+// Apple-style Scroll Animation for #about
+// ────────────────────────────────────
+(function () {
+  const section = document.getElementById("about");
+  if (!section) return;
+
+  const nameEl = document.getElementById("name");
+  const textEl = section.querySelector(".apple-text-reveal");
+  if (!textEl) return;
+
+  // ── Split paragraph text into individual word <span>s ──
+  const rawText = textEl.textContent.trim();
+  textEl.innerHTML = "";
+  const words = rawText.split(/\s+/);
+  const wordSpans = words.map((word) => {
+    const span = document.createElement("span");
+    span.classList.add("word");
+    span.textContent = word;
+    return span;
+  });
+  wordSpans.forEach((span) => textEl.appendChild(span));
+
+  const totalWords = wordSpans.length;
+
+  // ── Easing function (ease-out cubic) ──
+  function easeOutCubic(t) {
+    return 1 - Math.pow(1 - t, 3);
+  }
+
+  // ── Scroll-driven animation loop ──
+  let ticking = false;
+  let isInView = false;
+
+  // Only run the animation when the section is in the viewport
+  const viewObserver = new IntersectionObserver(
+    (entries) => {
+      entries.forEach((entry) => {
+        isInView = entry.isIntersecting;
+        if (isInView && !ticking) onScroll();
+      });
+    },
+    { threshold: 0 }
+  );
+  viewObserver.observe(section);
+
+  function onScroll() {
+    if (!isInView) return;
+    ticking = true;
+    requestAnimationFrame(updateAnimation);
+  }
+
+  function updateAnimation() {
+    const rect = section.getBoundingClientRect();
+    const sectionHeight = section.offsetHeight;
+    const viewportH = window.innerHeight;
+
+    // Overall scroll progress through the section: 0 at top, 1 at bottom
+    // We use the distance the section top has traveled past the viewport top
+    const scrolled = -rect.top;
+    const totalScrollable = sectionHeight - viewportH;
+    const rawProgress = Math.max(0, Math.min(1, scrolled / totalScrollable));
+
+    // ── Name animation (first 0% → 35% of scroll) ──
+    const nameEnd = 0.35;
+    const nameProgress = Math.min(1, rawProgress / nameEnd);
+    const easedName = easeOutCubic(nameProgress);
+
+    nameEl.style.setProperty("--name-opacity", easedName);
+    nameEl.style.setProperty("--name-scale", 1.15 - 0.15 * easedName);
+    nameEl.style.setProperty("--name-ty", (40 * (1 - easedName)) + "px");
+    nameEl.style.setProperty("--name-blur", (12 * (1 - easedName)) + "px");
+
+    // ── Text block fade-in (20% → 40% of scroll) ──
+    const textStart = 0.2;
+    const textFadeEnd = 0.4;
+    const textBlockProgress = Math.max(0, Math.min(1, (rawProgress - textStart) / (textFadeEnd - textStart)));
+    const easedTextBlock = easeOutCubic(textBlockProgress);
+
+    textEl.style.setProperty("--text-block-opacity", easedTextBlock);
+    textEl.style.setProperty("--text-block-ty", (20 * (1 - easedTextBlock)) + "px");
+
+    // ── Word-by-word reveal (30% → 90% of scroll) ──
+    const wordStart = 0.3;
+    const wordEnd = 0.9;
+    const wordProgress = Math.max(0, Math.min(1, (rawProgress - wordStart) / (wordEnd - wordStart)));
+
+    // How many words should be fully revealed at current progress
+    const revealedCount = Math.floor(wordProgress * totalWords);
+    // Fractional progress into the next word (for smooth near-reveal)
+    const nearFraction = (wordProgress * totalWords) - revealedCount;
+
+    for (let i = 0; i < totalWords; i++) {
+      const span = wordSpans[i];
+      if (i < revealedCount) {
+        span.classList.add("revealed");
+        span.classList.remove("near");
+      } else if (i === revealedCount && wordProgress > 0) {
+        span.classList.remove("revealed");
+        span.classList.add("near");
+        // Smooth opacity ramp for the currently-revealing word
+        span.style.opacity = 0.15 + 0.85 * nearFraction;
+        span.style.filter = `blur(${(1 - nearFraction) * 0.8}px)`;
+      } else {
+        span.classList.remove("revealed");
+        span.classList.remove("near");
+        span.style.opacity = "";
+        span.style.filter = "";
+      }
+    }
+
+    ticking = false;
+    if (isInView) onScroll();
+  }
+
+  window.addEventListener("scroll", onScroll, { passive: true });
+  // Run once on load in case section is already in view
+  requestAnimationFrame(updateAnimation);
+})();
+
 
 
 // ────────────────────────────────────
@@ -148,311 +286,287 @@ document.querySelectorAll('a[href^="#"]').forEach((a) => {
 });
 
 // ════════════════════════════════════
-// PHYSICS SIM 1: Particle Gravity
+// PHYSICS SIM 1: 2D Wave Dynamics
 // ════════════════════════════════════
 (function () {
-  const canvas = document.getElementById("particleSim");
+  const canvas = document.getElementById("waveSim");
   if (!canvas) return;
   const ctx = canvas.getContext("2d");
   let W, H;
-  const particles = [];
-  const PARTICLE_COUNT = 40;
-  const G = 0.08; // gravity acceleration
-  const DAMPING = 0.85;
-  const FRICTION = 0.999;
+
+  const COLS = 120;
+  const ROWS = 80;
+  let curr = [], prev = [];
+  const DAMPING = 0.985;
+  
+  const off = document.createElement("canvas");
+  off.width = COLS;
+  off.height = ROWS;
+  const offCtx = off.getContext("2d");
+  const walls = new Uint8Array(COLS * ROWS);
 
   function resize() {
-    const rect = canvas.getBoundingClientRect();
-    const dpr = window.devicePixelRatio || 1;
-    W = rect.width;
-    H = rect.height;
-    canvas.width = W * dpr;
-    canvas.height = H * dpr;
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  }
-
-  function isDark() {
-    return document.documentElement.getAttribute("data-theme") === "dark";
-  }
-
-  class Particle {
-    constructor() {
-      this.r = 3 + Math.random() * 6;
-      this.x = this.r + Math.random() * (300 - this.r * 2);
-      this.y = this.r + Math.random() * (200 - this.r * 2);
-      this.vx = (Math.random() - 0.5) * 3;
-      this.vy = (Math.random() - 0.5) * 2;
-      this.hue = Math.floor(Math.random() * 40) + 160; // teals/cyans
-    }
-    update(w, h) {
-      this.vy += G;
-      this.vx *= FRICTION;
-      this.vy *= FRICTION;
-      this.x += this.vx;
-      this.y += this.vy;
-
-      // Boundaries
-      if (this.x - this.r < 0) {
-        this.x = this.r;
-        this.vx *= -DAMPING;
-      }
-      if (this.x + this.r > w) {
-        this.x = w - this.r;
-        this.vx *= -DAMPING;
-      }
-      if (this.y - this.r < 0) {
-        this.y = this.r;
-        this.vy *= -DAMPING;
-      }
-      if (this.y + this.r > h) {
-        this.y = h - this.r;
-        this.vy *= -DAMPING;
-      }
-    }
-    draw(ctx, dark) {
-      const alpha = dark ? 0.85 : 0.75;
-      ctx.beginPath();
-      ctx.arc(this.x, this.y, this.r, 0, Math.PI * 2);
-      ctx.fillStyle = `hsla(${this.hue}, 70%, ${dark ? 65 : 55}%, ${alpha})`;
-      ctx.fill();
-      // glow
-      ctx.beginPath();
-      ctx.arc(this.x, this.y, this.r * 1.8, 0, Math.PI * 2);
-      ctx.fillStyle = `hsla(${this.hue}, 80%, 60%, 0.08)`;
-      ctx.fill();
-    }
-  }
-
-  // Particle-particle collision
-  function resolveCollisions(particles) {
-    for (let i = 0; i < particles.length; i++) {
-      for (let j = i + 1; j < particles.length; j++) {
-        const a = particles[i],
-          b = particles[j];
-        const dx = b.x - a.x,
-          dy = b.y - a.y;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-        const minDist = a.r + b.r;
-        if (dist < minDist && dist > 0) {
-          const nx = dx / dist,
-            ny = dy / dist;
-          const overlap = (minDist - dist) * 0.5;
-          a.x -= nx * overlap;
-          a.y -= ny * overlap;
-          b.x += nx * overlap;
-          b.y += ny * overlap;
-
-          // elastic impulse
-          const dvx = a.vx - b.vx,
-            dvy = a.vy - b.vy;
-          const dot = dvx * nx + dvy * ny;
-          if (dot > 0) {
-            const massA = a.r * a.r,
-              massB = b.r * b.r;
-            const total = massA + massB;
-            const impulse = (2 * dot) / total;
-            a.vx -= impulse * massB * nx;
-            a.vy -= impulse * massB * ny;
-            b.vx += impulse * massA * nx;
-            b.vy += impulse * massA * ny;
-          }
-        }
-      }
-    }
+    ({ W, H } = resizeCanvas(canvas));
   }
 
   function init() {
     resize();
-    particles.length = 0;
-    for (let i = 0; i < PARTICLE_COUNT; i++) {
-      const p = new Particle();
-      p.x = p.r + Math.random() * (W - p.r * 2);
-      p.y = p.r + Math.random() * (H - p.r * 2);
-      particles.push(p);
+    for (let x = 0; x < COLS; x++) {
+      curr[x] = new Float32Array(ROWS);
+      prev[x] = new Float32Array(ROWS);
+    }
+    
+    // Set up double slit wall
+    const wallX = Math.floor(COLS / 2);
+    for (let j = 0; j < ROWS; j++) {
+      const isSlit1 = Math.abs(j - ROWS * 0.35) < 3;
+      const isSlit2 = Math.abs(j - ROWS * 0.65) < 3;
+      if (!isSlit1 && !isSlit2) {
+        walls[wallX * ROWS + j] = 1;
+        walls[(wallX + 1) * ROWS + j] = 1;
+      }
     }
   }
 
-  // Click to burst particles outward
-  canvas.addEventListener("click", (e) => {
-    const rect = canvas.getBoundingClientRect();
-    const mx = e.clientX - rect.left;
-    const my = e.clientY - rect.top;
-    particles.forEach((p) => {
-      const dx = p.x - mx,
-        dy = p.y - my;
-      const dist = Math.sqrt(dx * dx + dy * dy) || 1;
-      const force = 300 / dist;
-      p.vx += (dx / dist) * force * 0.3;
-      p.vy += (dy / dist) * force * 0.3;
-    });
-  });
-
-  function loop() {
-    const dark = isDark();
-    ctx.clearRect(0, 0, W, H);
-
-    // Draw connection lines
-    for (let i = 0; i < particles.length; i++) {
-      for (let j = i + 1; j < particles.length; j++) {
-        const dx = particles[j].x - particles[i].x;
-        const dy = particles[j].y - particles[i].y;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-        if (dist < 80) {
-          const alpha = (1 - dist / 80) * (dark ? 0.15 : 0.1);
-          ctx.beginPath();
-          ctx.moveTo(particles[i].x, particles[i].y);
-          ctx.lineTo(particles[j].x, particles[j].y);
-          ctx.strokeStyle = dark
-            ? `rgba(61, 217, 193, ${alpha})`
-            : `rgba(30, 111, 92, ${alpha})`;
-          ctx.lineWidth = 1;
-          ctx.stroke();
+  function drop(cx, cy, radius, force) {
+    for (let x = Math.max(0, cx - radius); x < Math.min(COLS, cx + radius); x++) {
+      for (let y = Math.max(0, cy - radius); y < Math.min(ROWS, cy + radius); y++) {
+        const dist = Math.sqrt((x - cx) ** 2 + (y - cy) ** 2);
+        if (dist < radius && !walls[x * ROWS + y]) {
+          curr[x][y] += force * Math.cos((dist / radius) * Math.PI / 2);
         }
       }
     }
+  }
 
-    particles.forEach((p) => {
-      p.update(W, H);
-      p.draw(ctx, dark);
-    });
-    resolveCollisions(particles);
+  let isDown = false;
+  canvas.addEventListener("mousedown", (e) => {
+    isDown = true;
+    handleMouse(e);
+  });
+  canvas.addEventListener("mousemove", (e) => {
+    if (isDown) handleMouse(e);
+  });
+  canvas.addEventListener("mouseup", () => isDown = false);
+  canvas.addEventListener("mouseleave", () => isDown = false);
+  
+  // Random raindrops on the left side
+  setInterval(() => {
+    if (Math.random() < 0.25) {
+      drop((Math.random() * (COLS/2 - 10))|0, (Math.random() * ROWS)|0, 3, 200);
+    }
+  }, 100);
+
+  function handleMouse(e) {
+    const rect = canvas.getBoundingClientRect();
+    const mx = (e.clientX - rect.left) / W * COLS;
+    const my = (e.clientY - rect.top) / H * ROWS;
+    drop(mx | 0, my | 0, 4, -400);
+  }
+
+  function loop() {
+    const dark = isDark();
+
+    for (let i = 1; i < COLS - 1; i++) {
+      for (let j = 1; j < ROWS - 1; j++) {
+        if (walls[i * ROWS + j]) {
+          curr[i][j] = 0;
+          continue;
+        }
+        curr[i][j] = (
+          prev[i - 1][j] +
+          prev[i + 1][j] +
+          prev[i][j - 1] +
+          prev[i][j + 1]
+        ) / 2 - curr[i][j];
+        curr[i][j] *= DAMPING;
+      }
+    }
+
+    const imageData = offCtx.createImageData(COLS, ROWS);
+    const data = imageData.data;
+
+    for (let j = 0; j < ROWS; j++) {
+      for (let i = 0; i < COLS; i++) {
+        const val = curr[i][j];
+        const idx = (j * COLS + i) * 4;
+        
+        let r, g, b;
+        if (walls[i * ROWS + j]) {
+          r = dark ? 80 : 160;
+          g = dark ? 80 : 160;
+          b = dark ? 80 : 160;
+        } else if (dark) {
+          r = Math.min(255, Math.max(0, 24 + val));
+          g = Math.min(255, Math.max(0, 24 + val * 0.8));
+          b = Math.min(255, Math.max(0, 30 + val * 0.5));
+          if(val < 0) {
+            r = Math.min(255, Math.max(0, 24));
+            g = Math.min(255, Math.max(0, 24 + Math.abs(val)*0.5));
+            b = Math.min(255, Math.max(0, 30 + Math.abs(val)));
+          }
+        } else {
+          if(val > 0) {
+            r = Math.min(255, Math.max(0, 245 - val));
+            g = Math.min(255, Math.max(0, 245 - val*0.2));
+            b = Math.min(255, Math.max(0, 247));
+          } else {
+            r = Math.min(255, Math.max(0, 245));
+            g = Math.min(255, Math.max(0, 245 - Math.abs(val)*0.1));
+            b = Math.min(255, Math.max(0, 247 + Math.abs(val)*0.5));
+          }
+        }
+
+        data[idx] = r;
+        data[idx + 1] = g;
+        data[idx + 2] = b;
+        data[idx + 3] = 255;
+      }
+    }
+    offCtx.putImageData(imageData, 0, 0);
+
+    ctx.imageSmoothingEnabled = true;
+    ctx.drawImage(off, 0, 0, W, H);
+
+    let temp = prev;
+    prev = curr;
+    curr = temp;
+
     requestAnimationFrame(loop);
   }
 
   init();
-  window.addEventListener("resize", () => {
-    resize();
-  });
+  drop(COLS / 4, ROWS / 2, 8, 500);
+  window.addEventListener("resize", resize);
   loop();
 })();
 
 // ════════════════════════════════════
-// PHYSICS SIM 2: Double Pendulum
+// PHYSICS SIM 2: Elastic Double Pendulum
 // ════════════════════════════════════
 (function () {
-  const canvas = document.getElementById("pendulumSim");
+  const canvas = document.getElementById("springPendSim");
   if (!canvas) return;
   const ctx = canvas.getContext("2d");
   let W, H;
 
-  function resize() {
-    const rect = canvas.getBoundingClientRect();
-    const dpr = window.devicePixelRatio || 1;
-    W = rect.width;
-    H = rect.height;
-    canvas.width = W * dpr;
-    canvas.height = H * dpr;
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    trail.length = 0;
-  }
-
-  function isDark() {
-    return document.documentElement.getAttribute("data-theme") === "dark";
-  }
-
-  // Double pendulum parameters
-  const g = 1.5;
-  const m1 = 12,
-    m2 = 12;
-  let l1, l2;
-  let a1 = Math.PI / 2 + 0.3;
-  let a2 = Math.PI / 2 - 0.5;
-  let a1_v = 0,
-    a2_v = 0;
-  const dt = 0.3;
   const trail = [];
   const MAX_TRAIL = 600;
+  const grav = 200;
+  const m1 = 1, m2 = 1;
+  const k1 = 40, k2 = 40;
+  let L1, L2;
+  let x1, y1, vx1, vy1, x2, y2, vx2, vy2;
+  const substeps = 12;
+  const frameDt = 0.016;
 
-  // Click to randomize initial conditions
-  canvas.addEventListener("click", () => {
-    a1 = Math.random() * Math.PI * 2;
-    a2 = Math.random() * Math.PI * 2;
-    a1_v = (Math.random() - 0.5) * 0.5;
-    a2_v = (Math.random() - 0.5) * 0.5;
+  function resize() {
+    ({ W, H } = resizeCanvas(canvas));
     trail.length = 0;
-  });
+  }
 
-  function step() {
-    // RK4-like Lagrangian double pendulum equations
-    const num1 = -g * (2 * m1 + m2) * Math.sin(a1);
-    const num2 = -m2 * g * Math.sin(a1 - 2 * a2);
-    const num3 = -2 * Math.sin(a1 - a2) * m2;
-    const num4 = a2_v * a2_v * l2 + a1_v * a1_v * l1 * Math.cos(a1 - a2);
-    const den = l1 * (2 * m1 + m2 - m2 * Math.cos(2 * a1 - 2 * a2));
-    const a1_a = (num1 + num2 + num3 * num4) / den;
+  function randomize() {
+    L1 = Math.min(W, H) * 0.25;
+    L2 = Math.min(W, H) * 0.25;
+    const a1 = Math.random() * Math.PI * 2;
+    const a2 = Math.random() * Math.PI * 2;
+    const r1 = L1 * (0.8 + Math.random() * 0.4);
+    const r2 = L2 * (0.8 + Math.random() * 0.4);
+    x1 = Math.sin(a1) * r1;
+    y1 = Math.cos(a1) * r1;
+    x2 = x1 + Math.sin(a2) * r2;
+    y2 = y1 + Math.cos(a2) * r2;
+    vx1 = vy1 = vx2 = vy2 = 0;
+    trail.length = 0;
+  }
 
-    const num5 = 2 * Math.sin(a1 - a2);
-    const num6 = a1_v * a1_v * l1 * (m1 + m2);
-    const num7 = g * (m1 + m2) * Math.cos(a1);
-    const num8 = a2_v * a2_v * l2 * m2 * Math.cos(a1 - a2);
-    const den2 = l2 * (2 * m1 + m2 - m2 * Math.cos(2 * a1 - 2 * a2));
-    const a2_a = (num5 * (num6 + num7 + num8)) / den2;
+  canvas.addEventListener("click", randomize);
 
-    a1_v += a1_a * dt;
-    a2_v += a2_a * dt;
-    a1 += a1_v * dt;
-    a2 += a2_v * dt;
+  function step(h) {
+    // Spring 1: pivot (0,0) to mass 1
+    const d1 = Math.sqrt(x1 * x1 + y1 * y1) || 0.001;
+    const sf1 = -k1 * (d1 - L1);
 
-    // Slight damping for visual stability
-    a1_v *= 0.9995;
-    a2_v *= 0.9995;
+    // Spring 2: mass 1 to mass 2
+    const dx2 = x2 - x1, dy2 = y2 - y1;
+    const d2 = Math.sqrt(dx2 * dx2 + dy2 * dy2) || 0.001;
+    const sf2 = -k2 * (d2 - L2);
+
+    // Forces on mass 1: spring1 + reaction from spring2 + gravity
+    const fx1 = sf1 * (x1 / d1) - sf2 * (dx2 / d2);
+    const fy1 = sf1 * (y1 / d1) - sf2 * (dy2 / d2) + m1 * grav;
+
+    // Forces on mass 2: spring2 + gravity
+    const fx2 = sf2 * (dx2 / d2);
+    const fy2 = sf2 * (dy2 / d2) + m2 * grav;
+
+    // Semi-implicit Euler with damping
+    vx1 += (fx1 / m1) * h; vy1 += (fy1 / m1) * h;
+    vx2 += (fx2 / m2) * h; vy2 += (fy2 / m2) * h;
+    const damp = 0.9997;
+    vx1 *= damp; vy1 *= damp; vx2 *= damp; vy2 *= damp;
+    x1 += vx1 * h; y1 += vy1 * h;
+    x2 += vx2 * h; y2 += vy2 * h;
+  }
+
+  function drawSpring(ax, ay, bx, by, coils) {
+    const dx = bx - ax, dy = by - ay;
+    const len = Math.sqrt(dx * dx + dy * dy) || 1;
+    const nx = -dy / len, ny = dx / len;
+    const amp = Math.min(4, len * 0.06);
+    const segs = coils * 2;
+    const entry = 0.08;
+
+    ctx.beginPath();
+    ctx.moveTo(ax, ay);
+    ctx.lineTo(ax + dx * entry, ay + dy * entry);
+    for (let i = 1; i < segs; i++) {
+      const t = entry + (i / segs) * (1 - 2 * entry);
+      const side = (i % 2 === 0 ? 1 : -1) * amp;
+      ctx.lineTo(ax + dx * t + nx * side, ay + dy * t + ny * side);
+    }
+    ctx.lineTo(ax + dx * (1 - entry), ay + dy * (1 - entry));
+    ctx.lineTo(bx, by);
+    ctx.stroke();
   }
 
   function loop() {
-    l1 = Math.min(W, H) * 0.28;
-    l2 = Math.min(W, H) * 0.28;
-
-    step();
-
     const dark = isDark();
-    const ox = W / 2,
-      oy = H * 0.3;
 
-    const x1 = ox + l1 * Math.sin(a1);
-    const y1 = oy + l1 * Math.cos(a1);
-    const x2 = x1 + l2 * Math.sin(a2);
-    const y2 = y1 + l2 * Math.cos(a2);
+    for (let i = 0; i < substeps; i++) step(frameDt / substeps);
 
-    trail.push({ x: x2, y: y2 });
+    const ox = W / 2, oy = H * 0.2;
+    const px1 = ox + x1, py1 = oy + y1;
+    const px2 = ox + x2, py2 = oy + y2;
+
+    trail.push({ x: px2, y: py2 });
     if (trail.length > MAX_TRAIL) trail.shift();
 
     ctx.clearRect(0, 0, W, H);
 
-    // Draw trail
+    // Trail
     if (trail.length > 2) {
       ctx.beginPath();
       ctx.moveTo(trail[0].x, trail[0].y);
-      for (let i = 1; i < trail.length; i++) {
-        ctx.lineTo(trail[i].x, trail[i].y);
-      }
-      ctx.strokeStyle = dark
-        ? "rgba(232, 148, 74, 0.25)"
-        : "rgba(207, 107, 79, 0.2)";
+      for (let i = 1; i < trail.length; i++) ctx.lineTo(trail[i].x, trail[i].y);
+      ctx.strokeStyle = dark ? "rgba(232, 148, 74, 0.25)" : "rgba(207, 107, 79, 0.2)";
       ctx.lineWidth = 1.5;
       ctx.stroke();
 
-      // Brighter recent trail
-      const recentStart = Math.max(0, trail.length - 80);
+      const rs = Math.max(0, trail.length - 80);
       ctx.beginPath();
-      ctx.moveTo(trail[recentStart].x, trail[recentStart].y);
-      for (let i = recentStart + 1; i < trail.length; i++) {
-        ctx.lineTo(trail[i].x, trail[i].y);
-      }
-      ctx.strokeStyle = dark
-        ? "rgba(232, 148, 74, 0.6)"
-        : "rgba(207, 107, 79, 0.5)";
+      ctx.moveTo(trail[rs].x, trail[rs].y);
+      for (let i = rs + 1; i < trail.length; i++) ctx.lineTo(trail[i].x, trail[i].y);
+      ctx.strokeStyle = dark ? "rgba(232, 148, 74, 0.6)" : "rgba(207, 107, 79, 0.5)";
       ctx.lineWidth = 2;
       ctx.stroke();
     }
 
-    // Draw arms
-    ctx.beginPath();
-    ctx.moveTo(ox, oy);
-    ctx.lineTo(x1, y1);
-    ctx.lineTo(x2, y2);
-    ctx.strokeStyle = dark ? "rgba(255, 255, 255, 0.6)" : "rgba(0, 0, 0, 0.5)";
-    ctx.lineWidth = 2;
-    ctx.stroke();
+    // Springs
+    ctx.strokeStyle = dark ? "rgba(255, 255, 255, 0.5)" : "rgba(0, 0, 0, 0.4)";
+    ctx.lineWidth = 1.5;
+    drawSpring(ox, oy, px1, py1, 8);
+    drawSpring(px1, py1, px2, py2, 8);
 
     // Pivot
     ctx.beginPath();
@@ -462,21 +576,21 @@ document.querySelectorAll('a[href^="#"]').forEach((a) => {
 
     // Mass 1
     ctx.beginPath();
-    ctx.arc(x1, y1, 8, 0, Math.PI * 2);
+    ctx.arc(px1, py1, 8, 0, Math.PI * 2);
     ctx.fillStyle = dark ? "#3dd9c1" : "#1e6f5c";
     ctx.fill();
     ctx.beginPath();
-    ctx.arc(x1, y1, 14, 0, Math.PI * 2);
+    ctx.arc(px1, py1, 14, 0, Math.PI * 2);
     ctx.fillStyle = dark ? "rgba(61,217,193,0.12)" : "rgba(30,111,92,0.1)";
     ctx.fill();
 
     // Mass 2
     ctx.beginPath();
-    ctx.arc(x2, y2, 8, 0, Math.PI * 2);
+    ctx.arc(px2, py2, 8, 0, Math.PI * 2);
     ctx.fillStyle = dark ? "#e8944a" : "#cf6b4f";
     ctx.fill();
     ctx.beginPath();
-    ctx.arc(x2, y2, 14, 0, Math.PI * 2);
+    ctx.arc(px2, py2, 14, 0, Math.PI * 2);
     ctx.fillStyle = dark ? "rgba(232,148,74,0.12)" : "rgba(207,107,79,0.1)";
     ctx.fill();
 
@@ -484,6 +598,7 @@ document.querySelectorAll('a[href^="#"]').forEach((a) => {
   }
 
   resize();
+  randomize();
   window.addEventListener("resize", resize);
   loop();
 })();
@@ -509,13 +624,7 @@ document.querySelectorAll('a[href^="#"]').forEach((a) => {
   const MAX_POINTS = 800;
 
   function resize() {
-    const rect = canvas.getBoundingClientRect();
-    const dpr = window.devicePixelRatio || 1;
-    W = rect.width;
-    H = rect.height;
-    canvas.width = W * dpr;
-    canvas.height = H * dpr;
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ({ W, H } = resizeCanvas(canvas));
     points = [];
     x = 0.1;
     y = 0;
@@ -534,7 +643,7 @@ document.querySelectorAll('a[href^="#"]').forEach((a) => {
   });
 
   function loop() {
-    const dark = document.documentElement.getAttribute("data-theme") === "dark";
+    const dark = isDark();
 
     // Run multiple physics steps per frame when hovered to increase speed without losing numerical stability
     const steps = isHovered ? 5 : 1;
@@ -605,7 +714,7 @@ document.querySelectorAll('a[href^="#"]').forEach((a) => {
   const GW = 120, GH = 80;
   let U, V, nU, nV;
   const Du = 0.16, Dv = 0.08;
-  const f = 0.035, k = 0.065;
+  const f = 0.040, k = 0.060;
 
   const off = document.createElement("canvas");
   off.width = GW;
@@ -613,13 +722,7 @@ document.querySelectorAll('a[href^="#"]').forEach((a) => {
   const offCtx = off.getContext("2d");
 
   function resize() {
-    const rect = canvas.getBoundingClientRect();
-    const dpr = window.devicePixelRatio || 1;
-    W = rect.width;
-    H = rect.height;
-    canvas.width = W * dpr;
-    canvas.height = H * dpr;
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ({ W, H } = resizeCanvas(canvas));
   }
 
   function alloc() {
@@ -652,15 +755,26 @@ document.querySelectorAll('a[href^="#"]').forEach((a) => {
     seed((3 * GW) / 4, (2 * GH) / 3);
   }
 
-  canvas.addEventListener("click", (e) => {
+  let isDraggingRD = false;
+  canvas.addEventListener("mousedown", (e) => {
+    isDraggingRD = true;
+    handleRDInteract(e);
+  });
+  canvas.addEventListener("mousemove", (e) => {
+    if (isDraggingRD) handleRDInteract(e);
+  });
+  canvas.addEventListener("mouseup", () => isDraggingRD = false);
+  canvas.addEventListener("mouseleave", () => isDraggingRD = false);
+
+  function handleRDInteract(e) {
     const rect = canvas.getBoundingClientRect();
     const mx = e.clientX - rect.left;
     const my = e.clientY - rect.top;
     seed(((mx / W) * GW) | 0, ((my / H) * GH) | 0);
-  });
+  }
 
   function loop() {
-    const dark = document.documentElement.getAttribute("data-theme") === "dark";
+    const dark = isDark();
 
     for (let step = 0; step < 6; step++) {
       for (let i = 0; i < GW; i++) {
@@ -686,11 +800,11 @@ document.querySelectorAll('a[href^="#"]').forEach((a) => {
         const v = V[i][j];
         const idx = (j * GW + i) * 4;
         if (dark) {
-          data[idx]     = (v * 61) | 0;
+          data[idx] = (v * 61) | 0;
           data[idx + 1] = (v * 217 + (1 - v) * 20) | 0;
           data[idx + 2] = (v * 193 + (1 - v) * 30) | 0;
         } else {
-          data[idx]     = (v * 207 + (1 - v) * 245) | 0;
+          data[idx] = (v * 207 + (1 - v) * 245) | 0;
           data[idx + 1] = (v * 107 + (1 - v) * 239) | 0;
           data[idx + 2] = (v * 79 + (1 - v) * 230) | 0;
         }
@@ -729,13 +843,7 @@ document.querySelectorAll('a[href^="#"]').forEach((a) => {
   const offCtx = off.getContext("2d");
 
   function resize() {
-    const rect = canvas.getBoundingClientRect();
-    const dpr = window.devicePixelRatio || 1;
-    W = rect.width;
-    H = rect.height;
-    canvas.width = W * dpr;
-    canvas.height = H * dpr;
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ({ W, H } = resizeCanvas(canvas));
   }
 
   function init() {
@@ -767,7 +875,7 @@ document.querySelectorAll('a[href^="#"]').forEach((a) => {
   });
 
   function loop() {
-    const dark = document.documentElement.getAttribute("data-theme") === "dark";
+    const dark = isDark();
     const cellW = W / GRID;
     const cellH = H / GRID;
 
@@ -827,125 +935,167 @@ document.querySelectorAll('a[href^="#"]').forEach((a) => {
   loop();
 })();
 
-// 7: 1D Traffic Flow (Nonlinear Dynamics - Bando Optimal Velocity Model)
+// 7: 1D Traffic Flow (Nonlinear Dynamics - Enhanced Bando OV Model)
 (() => {
   const canvas = document.getElementById("trafficSim");
+  if (!canvas) return;
   const ctx = canvas.getContext("2d");
   let W, H;
 
-  const numCars = 15;
-  let cars = []; // { x: position (arc length), v: velocity }
+  let numCars = 22;
+  let cars = [];
   const radius = 80;
-  const sensitivity = 0.8; // a in dv/dt = a[V(dx) - v]
+
+  let isHovered = false;
+  canvas.addEventListener("mouseenter", () => isHovered = true);
+  canvas.addEventListener("mouseleave", () => isHovered = false);
 
   function resize() {
-    const rect = canvas.getBoundingClientRect();
-    const dpr = window.devicePixelRatio || 1;
-    W = rect.width;
-    H = rect.height;
-    canvas.width = W * dpr;
-    canvas.height = H * dpr;
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ({ W, H } = resizeCanvas(canvas));
   }
 
   function init() {
     resize();
     cars = [];
-    const circumference = 2 * Math.PI * radius;
+    const circ = 2 * Math.PI * radius;
     for (let i = 0; i < numCars; i++) {
-      // Evenly spaced positions, fully random initial velocity
-      const pos = (i / numCars) * circumference;
-      const vel = Math.random() * 1.4; // Max velocity is 1.4
-      cars.push({ x: pos, v: vel });
+      cars.push({
+        x: (i / numCars) * circ,
+        v: i === 0 ? 0 : 0.6 + Math.random() * 0.3, // car 0 starts braked → seeds jam
+        prevV: 0.8,
+        sens: 0.15 + Math.random() * 0.15,  // low sensitivity → slow reaction → jams persist
+        vmax: 1.2 + Math.random() * 0.4,
+        braking: false,
+      });
     }
   }
 
-  // Realistic Bando Optimal Velocity (OV) nonlinear function
-  const V_opt = (dx) => {
-    const vmax = 1.4; // Maximum allowed velocity
-    const hc = 28.0; // Safety distance (critical headway)
-    const w = 6.0; // Transition width
+  // Bando Optimal Velocity — hc matches average spacing for critical density
+  function V_opt(dx, vmax) {
+    const hc = 22.0;
+    const w = 4.0;
+    const norm = 1.0 + Math.tanh(hc / w);
+    return (vmax * (Math.tanh((dx - hc) / w) + Math.tanh(hc / w))) / norm;
+  }
 
-    // Normalized tanh curve representing how drivers respond to distance to the car ahead
-    // V(dx) = vmax * [tanh((dx - hc) / w) + tanh(hc / w)] / [1 + tanh(hc / w)]
-    const normalization = 1.0 + Math.tanh(hc / w);
-    return (
-      (vmax * (Math.tanh((dx - hc) / w) + Math.tanh(hc / w))) / normalization
-    );
-  };
-
-  // Click to brake a car and manually trigger a jam
+  // Click to randomly add/remove cars
   canvas.addEventListener("click", () => {
-    if (cars.length > 0) cars[0].v = 0;
+    if (Math.random() < 0.5 && numCars > 5) {
+      numCars--;
+      cars.splice(Math.floor(Math.random() * numCars), 1);
+    } else if (numCars < 50) {
+      numCars++;
+      const circ = 2 * Math.PI * radius;
+      cars.push({
+        x: Math.random() * circ,
+        v: 0.5,
+        prevV: 0.5,
+        sens: 0.15 + Math.random() * 0.15,
+        vmax: 1.2 + Math.random() * 0.4,
+        braking: false,
+      });
+      cars.sort((a, b) => a.x - b.x);
+    }
   });
 
   function loop() {
-    const dark = document.documentElement.getAttribute("data-theme") === "dark";
+    const dark = isDark();
     ctx.clearRect(0, 0, W, H);
 
-    const circumference = 2 * Math.PI * radius;
+    const circ = 2 * Math.PI * radius;
+    const dt = 0.4;
 
-    // Physics step
-    let dt = 0.5;
-    let newCars = JSON.parse(JSON.stringify(cars));
+    // Multiple physics substeps per frame for smoother dynamics
+    for (let sub = 0; sub < 3; sub++) {
+      const next = cars.map((c) => ({ ...c }));
+      for (let i = 0; i < numCars; i++) {
+        const car = cars[i];
+        const ahead = cars[(i + 1) % numCars];
+        let dx = ahead.x - car.x;
+        if (dx < 0) dx += circ;
 
-    for (let i = 0; i < numCars; i++) {
-      let car = cars[i];
-      let nextCar = cars[(i + 1) % numCars];
+        const effectiveVmax = isHovered ? car.vmax * 0.25 : car.vmax;
+        let accel = car.sens * (V_opt(dx, effectiveVmax) - car.v);
 
-      let dx = nextCar.x - car.x;
-      if (dx < 0) dx += circumference; // Wrap around ring
+        // Stochastic braking — random perturbations generate phantom jams
+        if (Math.random() < 0.006 && car.v > 0.3) accel -= 0.6;
 
-      let accel = sensitivity * (V_opt(dx) - car.v);
-      newCars[i].v = car.v + accel * dt;
-
-      // Prevent driving backwards
-      if (newCars[i].v < 0) newCars[i].v = 0;
-
-      newCars[i].x = car.x + newCars[i].v * dt;
-      if (newCars[i].x > circumference) {
-        newCars[i].x -= circumference;
+        next[i].prevV = car.v;
+        next[i].v = Math.max(0, car.v + accel * dt);
+        next[i].x = car.x + next[i].v * dt;
+        if (next[i].x > circ) next[i].x -= circ;
+        next[i].braking = next[i].v < next[i].prevV - 0.01;
       }
+      cars = next;
     }
-    cars = newCars;
 
-    // Render scene
+    // Render
     ctx.save();
     ctx.translate(W / 2, H / 2);
 
-    // Draw circular 1D track
+    // Road surface
     ctx.beginPath();
     ctx.arc(0, 0, radius, 0, Math.PI * 2);
-    ctx.strokeStyle = dark ? "#2a2a2a" : "#eaeaea";
-    ctx.lineWidth = 14;
+    ctx.strokeStyle = dark ? "#2a2a2a" : "#e0e0e0";
+    ctx.lineWidth = 18;
     ctx.stroke();
 
+    // Road edges
+    ctx.beginPath();
+    ctx.arc(0, 0, radius + 9, 0, Math.PI * 2);
+    ctx.strokeStyle = dark ? "#555" : "#bbb";
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(0, 0, radius - 9, 0, Math.PI * 2);
+    ctx.stroke();
+
+    // Dashed center line
+    ctx.setLineDash([6, 8]);
+    ctx.beginPath();
+    ctx.arc(0, 0, radius, 0, Math.PI * 2);
     ctx.strokeStyle = dark ? "#444" : "#ccc";
     ctx.lineWidth = 1;
     ctx.stroke();
+    ctx.setLineDash([]);
 
     // Draw cars
     for (let i = 0; i < numCars; i++) {
       const angle = cars[i].x / radius;
       const cx = Math.cos(angle) * radius;
       const cy = Math.sin(angle) * radius;
+      const tangent = angle + Math.PI / 2;
 
       ctx.save();
       ctx.translate(cx, cy);
-      ctx.rotate(angle);
+      ctx.rotate(tangent);
 
+      // Car body
+      const cw = 5, ch = 10;
       ctx.beginPath();
-      // Draw cars as little rectangles pointing along the track
-      ctx.rect(-4, -6, 8, 12);
-
-      // Color heatmaps based on local velocity
-      // Slow = red, Fast = green
-      const vRatio = Math.min(cars[i].v / 2.0, 1.0);
+      ctx.roundRect(-cw / 2, -ch / 2, cw, ch, 2);
+      const vRatio = Math.min(cars[i].v / 1.6, 1.0);
       const r = Math.floor(255 * (1 - vRatio));
-      const g = Math.floor(255 * vRatio);
+      const g = Math.floor(200 * vRatio);
       ctx.fillStyle = `rgb(${r}, ${g}, 80)`;
-
       ctx.fill();
+
+      // Brake lights
+      if (cars[i].braking) {
+        ctx.beginPath();
+        ctx.arc(0, ch / 2 + 1, 3, 0, Math.PI * 2);
+        ctx.fillStyle = "rgba(255, 40, 40, 0.6)";
+        ctx.fill();
+      }
+
+      // Headlights in dark mode
+      if (dark) {
+        ctx.beginPath();
+        ctx.arc(0, -ch / 2 - 1, 2, 0, Math.PI * 2);
+        ctx.fillStyle = "rgba(255, 255, 180, 0.35)";
+        ctx.fill();
+      }
+
       ctx.restore();
     }
     ctx.restore();
@@ -956,4 +1106,160 @@ document.querySelectorAll('a[href^="#"]').forEach((a) => {
   init();
   window.addEventListener("resize", resize);
   loop();
+})();
+
+// ────────────────────────────────────
+// Project Cards — Swipe Carousel
+// ────────────────────────────────────
+(function () {
+  const track = document.getElementById("projectTrack");
+  const dotsContainer = document.getElementById("carouselDots");
+  const counter = document.getElementById("carouselCounter");
+  const prevBtn = document.getElementById("carouselPrev");
+  const nextBtn = document.getElementById("carouselNext");
+  if (!track) return;
+
+  const cards = Array.from(track.querySelectorAll(".project-card"));
+  const total = cards.length;
+  let currentIndex = 0;
+
+  // ── Build dot indicators with title labels ──
+  cards.forEach((card, i) => {
+    const dot = document.createElement("button");
+    dot.classList.add("carousel-dot");
+    dot.setAttribute("aria-label", `Go to project ${i + 1}`);
+    // Add title label inside the dot
+    const label = document.createElement("span");
+    label.classList.add("dot-label");
+    label.textContent = card.querySelector("h3").textContent;
+    dot.appendChild(label);
+    if (i === 0) dot.classList.add("active");
+    dot.addEventListener("click", () => goTo(i));
+    dotsContainer.appendChild(dot);
+  });
+
+  const dots = Array.from(dotsContainer.querySelectorAll(".carousel-dot"));
+
+  function updateUI(index) {
+    currentIndex = index;
+
+    // Update dots
+    dots.forEach((d, i) => d.classList.toggle("active", i === index));
+
+    // Update counter
+    counter.textContent = `${index + 1} / ${total}`;
+
+    // Update active card class
+    cards.forEach((c, i) => c.classList.toggle("card-active", i === index));
+
+    // Update arrow enabled state
+    prevBtn.disabled = index === 0;
+    nextBtn.disabled = index === total - 1;
+  }
+
+  let navigating = false;
+
+  function goTo(index) {
+    index = Math.max(0, Math.min(total - 1, index));
+    navigating = true;
+    const card = cards[index];
+    const trackRect = track.getBoundingClientRect();
+    const cardRect = card.getBoundingClientRect();
+    // Center the card in the track viewport
+    const scrollTarget = card.offsetLeft - (trackRect.width / 2) + (cardRect.width / 2);
+    track.scrollTo({ left: scrollTarget, behavior: "smooth" });
+    updateUI(index);
+    // Clear navigating flag after scroll settles
+    clearTimeout(navTimeout);
+    navTimeout = setTimeout(() => { navigating = false; }, 500);
+  }
+
+  let navTimeout;
+
+  // ── Arrow buttons ──
+  prevBtn.addEventListener("click", () => goTo(currentIndex - 1));
+  nextBtn.addEventListener("click", () => goTo(currentIndex + 1));
+
+  // ── Keyboard navigation ──
+  document.addEventListener("keydown", (e) => {
+    // Only when carousel is somewhat in view
+    const rect = track.getBoundingClientRect();
+    const inView = rect.top < window.innerHeight && rect.bottom > 0;
+    if (!inView) return;
+    if (e.key === "ArrowLeft") goTo(currentIndex - 1);
+    if (e.key === "ArrowRight") goTo(currentIndex + 1);
+  });
+
+  // ── Scroll-snap detection (update active on manual scroll/swipe) ──
+  let scrollTimeout;
+  track.addEventListener("scroll", () => {
+    clearTimeout(scrollTimeout);
+    scrollTimeout = setTimeout(() => {
+      // Don't override during programmatic navigation
+      if (navigating) return;
+      const trackCenter = track.scrollLeft + track.offsetWidth / 2;
+      let closest = 0;
+      let closestDist = Infinity;
+      cards.forEach((card, i) => {
+        const cardCenter = card.offsetLeft + card.offsetWidth / 2;
+        const dist = Math.abs(trackCenter - cardCenter);
+        if (dist < closestDist) {
+          closestDist = dist;
+          closest = i;
+        }
+      });
+      updateUI(closest);
+    }, 80);
+  }, { passive: true });
+
+  // ── Pointer drag (mouse + touch) ──
+  let isDragging = false;
+  let startX = 0;
+  let scrollStart = 0;
+
+  track.addEventListener("pointerdown", (e) => {
+    if (e.pointerType === "mouse") {
+      isDragging = true;
+      startX = e.clientX;
+      scrollStart = track.scrollLeft;
+      track.style.scrollSnapType = "none";
+      track.style.scrollBehavior = "auto";
+      track.setPointerCapture(e.pointerId);
+    }
+  });
+
+  track.addEventListener("pointermove", (e) => {
+    if (!isDragging) return;
+    const dx = e.clientX - startX;
+    track.scrollLeft = scrollStart - dx;
+  });
+
+  track.addEventListener("pointerup", (e) => {
+    if (!isDragging) return;
+    isDragging = false;
+    track.style.scrollSnapType = "x mandatory";
+    track.style.scrollBehavior = "smooth";
+
+    // Determine direction from drag distance and snap
+    const dx = e.clientX - startX;
+    if (Math.abs(dx) > 50) {
+      goTo(currentIndex + (dx < 0 ? 1 : -1));
+    } else {
+      goTo(currentIndex); // snap back
+    }
+  });
+
+  track.addEventListener("pointercancel", () => {
+    isDragging = false;
+    track.style.scrollSnapType = "x mandatory";
+    track.style.scrollBehavior = "smooth";
+  });
+
+  // ── Initial state ──
+  updateUI(0);
+
+  // After a short delay, center the first card properly
+  requestAnimationFrame(() => {
+    goTo(0);
+  });
 })();
