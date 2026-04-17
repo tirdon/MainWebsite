@@ -55,7 +55,7 @@ function resizeCanvas(canvas) {
 // ────────────────────────────────────
 // Scroll-Reveal & ScrollSpy & Skill Bar Animation
 // ────────────────────────────────────
-(function () {
+(() => {
   const reveals = document.querySelectorAll(".reveal");
   const bars = document.querySelectorAll(".skill-bar-fill");
   const navLinks = document.querySelectorAll(".container nav ul li a");
@@ -111,7 +111,7 @@ function resizeCanvas(canvas) {
 // ────────────────────────────────────
 // Hero Scroll Reveal (name + word cascade)
 // ────────────────────────────────────
-(function () {
+(() => {
   const section = document.getElementById("about");
   if (!section) return;
 
@@ -207,7 +207,7 @@ function resizeCanvas(canvas) {
 // ────────────────────────────────────
 // Mobile Hamburger Menu
 // ────────────────────────────────────
-(function () {
+(() => {
   const btn = document.getElementById("menuToggle");
   const nav = document.getElementById("mainNav");
   const overlay = document.getElementById("navOverlay");
@@ -262,7 +262,7 @@ document.querySelectorAll('a[href^="#"]').forEach((a) => {
 // ════════════════════════════════════
 // PHYSICS SIM 1: 2D Wave Dynamics
 // ════════════════════════════════════
-(function () {
+(() => {
   const canvas = document.getElementById("waveSim");
   if (!canvas) return;
   const ctx = canvas.getContext("2d");
@@ -363,13 +363,13 @@ document.querySelectorAll('a[href^="#"]').forEach((a) => {
     if (dark) {
       bgR = 18; bgG = 22; bgB = 30;
       pR = 232; pG = 148; pB = 74;    // orange crest
-      nR = 61;  nG = 217; nB = 193;   // teal trough
-      wR = 70;  wG = 70;  wB = 78;
+      nR = 61; nG = 217; nB = 193;   // teal trough
+      wR = 70; wG = 70; wB = 78;
     } else {
       bgR = 247; bgG = 244; bgB = 238;
-      pR = 207;  pG = 107;  pB = 79;
-      nR = 30;   nG = 111;  nB = 92;
-      wR = 150;  wG = 150;  wB = 150;
+      pR = 207; pG = 107; pB = 79;
+      nR = 30; nG = 111; nB = 92;
+      wR = 150; wG = 150; wB = 150;
     }
     const wallColor = 0xff000000 | (wB << 16) | (wG << 8) | wR;
 
@@ -414,7 +414,7 @@ document.querySelectorAll('a[href^="#"]').forEach((a) => {
 // ════════════════════════════════════
 // PHYSICS SIM 2: Elastic Double Pendulum
 // ════════════════════════════════════
-(function () {
+(() => {
   const canvas = document.getElementById("springPendSim");
   if (!canvas) return;
   const ctx = canvas.getContext("2d");
@@ -576,7 +576,7 @@ document.querySelectorAll('a[href^="#"]').forEach((a) => {
 // ════════════════════════════════════
 // PHYSICS SIM 3: Lorenz Attractor
 // ════════════════════════════════════
-(function () {
+(() => {
   const canvas = document.getElementById("lorenzSim");
   if (!canvas) return;
   const ctx = canvas.getContext("2d");
@@ -675,7 +675,7 @@ document.querySelectorAll('a[href^="#"]').forEach((a) => {
 // ════════════════════════════════════
 // PHYSICS SIM 4: Reaction-Diffusion (Gray-Scott)
 // ════════════════════════════════════
-(function () {
+(() => {
   const canvas = document.getElementById("reactionSim");
   if (!canvas) return;
   const ctx = canvas.getContext("2d");
@@ -796,7 +796,7 @@ document.querySelectorAll('a[href^="#"]').forEach((a) => {
 // ════════════════════════════════════
 // PHYSICS SIM 5: Ising Model (2D Spin Lattice)
 // ════════════════════════════════════
-(function () {
+(() => {
   const canvas = document.getElementById("isingSim");
   if (!canvas) return;
   const ctx = canvas.getContext("2d");
@@ -1089,7 +1089,7 @@ document.querySelectorAll('a[href^="#"]').forEach((a) => {
 // ────────────────────────────────────
 // Project Cards — Swipe Carousel
 // ────────────────────────────────────
-(function () {
+(() => {
   const track = document.getElementById("projectTrack");
   const dotsContainer = document.getElementById("carouselDots");
   const counter = document.getElementById("carouselCounter");
