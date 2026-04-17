@@ -139,14 +139,15 @@ function runWhenVisible(canvas, frame) {
   const textEl = section.querySelector(".text-reveal");
   if (!textEl) return;
 
-  // Split paragraph into word spans (spaced via CSS margin-right)
+  // Split paragraph into word spans with real whitespace between so text-align: justify works
   const words = textEl.textContent.trim().split(/\s+/);
   textEl.innerHTML = "";
-  const wordSpans = words.map((word) => {
+  const wordSpans = words.map((word, i) => {
     const span = document.createElement("span");
     span.className = "word";
     span.textContent = word;
     textEl.appendChild(span);
+    if (i < words.length - 1) textEl.appendChild(document.createTextNode(" "));
     return span;
   });
 

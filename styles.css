@@ -508,9 +508,12 @@ a:hover {
   color: var(--text-secondary);
   margin-top: 32px;
   padding-left: 24px;
+  padding-right: 24px;
   border-left: 4px solid var(--accent-1);
-  max-width: 800px;
+  width: 100%;
+  max-width: none;
   line-height: 1.9;
+  text-align: justify;
   opacity: var(--text-block-opacity, 0);
   transform: translateY(var(--text-block-ty, 24px));
   will-change: transform, opacity;
@@ -522,7 +525,6 @@ a:hover {
   filter: blur(6px);
   transform: translateY(10px);
   will-change: opacity, filter, transform;
-  margin-right: 0.22em;
 }
 
 #about ul {
