@@ -109,123 +109,97 @@ function resizeCanvas(canvas) {
 })();
 
 // ────────────────────────────────────
-// Apple-style Scroll Animation for #about
+// Hero Scroll Reveal (name + word cascade)
 // ────────────────────────────────────
 (function () {
   const section = document.getElementById("about");
   if (!section) return;
 
   const nameEl = document.getElementById("name");
-  const textEl = section.querySelector(".apple-text-reveal");
+  const textEl = section.querySelector(".text-reveal");
   if (!textEl) return;
 
-  // ── Split paragraph text into individual word <span>s ──
-  const rawText = textEl.textContent.trim();
+  // Split paragraph into word spans (spaced via CSS margin-right)
+  const words = textEl.textContent.trim().split(/\s+/);
   textEl.innerHTML = "";
-  const words = rawText.split(/\s+/);
   const wordSpans = words.map((word) => {
     const span = document.createElement("span");
-    span.classList.add("word");
+    span.className = "word";
     span.textContent = word;
+    textEl.appendChild(span);
     return span;
   });
-  wordSpans.forEach((span) => textEl.appendChild(span));
 
-  const totalWords = wordSpans.length;
+  const N = wordSpans.length;
+  const easeOutCubic = (t) => 1 - Math.pow(1 - t, 3);
+  const easeOutQuart = (t) => 1 - Math.pow(1 - t, 4);
+  const clamp01 = (v) => Math.max(0, Math.min(1, v));
 
-  // ── Easing function (ease-out cubic) ──
-  function easeOutCubic(t) {
-    return 1 - Math.pow(1 - t, 3);
+  // Word cascade: each word's reveal window overlaps neighbors so multiple
+  // words are in flight at once, creating a smooth cascade rather than a
+  // discrete one-word-at-a-time transition.
+  const WORD_RANGE_START = 0.25;
+  const WORD_RANGE_END = 0.92;
+  const PER_WORD_DURATION = 0.14;
+  const wordSpacing = Math.max(
+    0,
+    (WORD_RANGE_END - WORD_RANGE_START - PER_WORD_DURATION) / Math.max(1, N - 1),
+  );
+
+  let isInView = false;
+  let ticking = false;
+
+  function schedule() {
+    if (!ticking) {
+      ticking = true;
+      requestAnimationFrame(update);
+    }
   }
 
-  // ── Scroll-driven animation loop ──
-  let ticking = false;
-  let isInView = false;
+  function update() {
+    ticking = false;
 
-  // Only run the animation when the section is in the viewport
+    const rect = section.getBoundingClientRect();
+    const totalScrollable = Math.max(1, section.offsetHeight - window.innerHeight);
+    const p = clamp01(-rect.top / totalScrollable);
+
+    // Name: 0 → 0.3 scroll progress
+    const nameP = easeOutCubic(clamp01(p / 0.3));
+    nameEl.style.setProperty("--name-opacity", nameP);
+    nameEl.style.setProperty("--name-scale", 1.2 - 0.2 * nameP);
+    nameEl.style.setProperty("--name-ty", 50 * (1 - nameP) + "px");
+    nameEl.style.setProperty("--name-blur", 14 * (1 - nameP) + "px");
+
+    // Text block: 0.15 → 0.35 scroll progress
+    const blockP = easeOutQuart(clamp01((p - 0.15) / 0.2));
+    textEl.style.setProperty("--text-block-opacity", blockP);
+    textEl.style.setProperty("--text-block-ty", 24 * (1 - blockP) + "px");
+
+    // Per-word cascade
+    for (let i = 0; i < N; i++) {
+      const wordStart = WORD_RANGE_START + i * wordSpacing;
+      const wp = easeOutCubic(clamp01((p - wordStart) / PER_WORD_DURATION));
+      const span = wordSpans[i];
+      span.style.opacity = 0.1 + 0.9 * wp;
+      span.style.filter = `blur(${(1 - wp) * 6}px)`;
+      span.style.transform = `translateY(${(1 - wp) * 10}px)`;
+    }
+  }
+
   const viewObserver = new IntersectionObserver(
     (entries) => {
       entries.forEach((entry) => {
         isInView = entry.isIntersecting;
-        if (isInView && !ticking) onScroll();
+        if (isInView) schedule();
       });
     },
-    { threshold: 0 }
+    { threshold: 0 },
   );
   viewObserver.observe(section);
 
-  function onScroll() {
-    if (!isInView) return;
-    ticking = true;
-    requestAnimationFrame(updateAnimation);
-  }
-
-  function updateAnimation() {
-    const rect = section.getBoundingClientRect();
-    const sectionHeight = section.offsetHeight;
-    const viewportH = window.innerHeight;
-
-    // Overall scroll progress through the section: 0 at top, 1 at bottom
-    // We use the distance the section top has traveled past the viewport top
-    const scrolled = -rect.top;
-    const totalScrollable = sectionHeight - viewportH;
-    const rawProgress = Math.max(0, Math.min(1, scrolled / totalScrollable));
-
-    // ── Name animation (first 0% → 35% of scroll) ──
-    const nameEnd = 0.35;
-    const nameProgress = Math.min(1, rawProgress / nameEnd);
-    const easedName = easeOutCubic(nameProgress);
-
-    nameEl.style.setProperty("--name-opacity", easedName);
-    nameEl.style.setProperty("--name-scale", 1.15 - 0.15 * easedName);
-    nameEl.style.setProperty("--name-ty", (40 * (1 - easedName)) + "px");
-    nameEl.style.setProperty("--name-blur", (12 * (1 - easedName)) + "px");
-
-    // ── Text block fade-in (20% → 40% of scroll) ──
-    const textStart = 0.2;
-    const textFadeEnd = 0.4;
-    const textBlockProgress = Math.max(0, Math.min(1, (rawProgress - textStart) / (textFadeEnd - textStart)));
-    const easedTextBlock = easeOutCubic(textBlockProgress);
-
-    textEl.style.setProperty("--text-block-opacity", easedTextBlock);
-    textEl.style.setProperty("--text-block-ty", (20 * (1 - easedTextBlock)) + "px");
-
-    // ── Word-by-word reveal (30% → 90% of scroll) ──
-    const wordStart = 0.3;
-    const wordEnd = 0.9;
-    const wordProgress = Math.max(0, Math.min(1, (rawProgress - wordStart) / (wordEnd - wordStart)));
-
-    // How many words should be fully revealed at current progress
-    const revealedCount = Math.floor(wordProgress * totalWords);
-    // Fractional progress into the next word (for smooth near-reveal)
-    const nearFraction = (wordProgress * totalWords) - revealedCount;
-
-    for (let i = 0; i < totalWords; i++) {
-      const span = wordSpans[i];
-      if (i < revealedCount) {
-        span.classList.add("revealed");
-        span.classList.remove("near");
-      } else if (i === revealedCount && wordProgress > 0) {
-        span.classList.remove("revealed");
-        span.classList.add("near");
-        // Smooth opacity ramp for the currently-revealing word
-        span.style.opacity = 0.15 + 0.85 * nearFraction;
-        span.style.filter = `blur(${(1 - nearFraction) * 0.8}px)`;
-      } else {
-        span.classList.remove("revealed");
-        span.classList.remove("near");
-        span.style.opacity = "";
-        span.style.filter = "";
-      }
-    }
-
-    ticking = false;
-    if (isInView) onScroll();
-  }
-
-  window.addEventListener("scroll", onScroll, { passive: true });
-  // Run once on load in case section is already in view
-  requestAnimationFrame(updateAnimation);
+  window.addEventListener("scroll", () => { if (isInView) schedule(); }, { passive: true });
+  window.addEventListener("resize", schedule);
+  requestAnimationFrame(update);
 })();
 
 
@@ -294,34 +268,39 @@ document.querySelectorAll('a[href^="#"]').forEach((a) => {
   const ctx = canvas.getContext("2d");
   let W, H;
 
-  const COLS = 120;
-  const ROWS = 80;
-  let curr = [], prev = [];
-  const DAMPING = 0.985;
-  
+  const COLS = 200, ROWS = 130;
+  const N = COLS * ROWS;
+  let curr = new Float32Array(N);
+  let prev = new Float32Array(N);
+  const walls = new Uint8Array(N);
+  const DAMPING = 0.996;
+
+  const SOURCE_X = 4;
+  const FREQ = 0.22;
+  const AMP = 60;
+
   const off = document.createElement("canvas");
   off.width = COLS;
   off.height = ROWS;
   const offCtx = off.getContext("2d");
-  const walls = new Uint8Array(COLS * ROWS);
+  const imageData = offCtx.createImageData(COLS, ROWS);
+  const pixels = new Uint32Array(imageData.data.buffer);
+
+  let time = 0;
 
   function resize() {
     ({ W, H } = resizeCanvas(canvas));
   }
 
-  function init() {
-    resize();
-    for (let x = 0; x < COLS; x++) {
-      curr[x] = new Float32Array(ROWS);
-      prev[x] = new Float32Array(ROWS);
-    }
-    
-    // Set up double slit wall
-    const wallX = Math.floor(COLS / 2);
+  function setupWalls() {
+    walls.fill(0);
+    const wallX = Math.floor(COLS * 0.45);
+    const slit1 = Math.floor(ROWS * 0.38);
+    const slit2 = Math.floor(ROWS * 0.62);
+    const half = 3;
     for (let j = 0; j < ROWS; j++) {
-      const isSlit1 = Math.abs(j - ROWS * 0.35) < 3;
-      const isSlit2 = Math.abs(j - ROWS * 0.65) < 3;
-      if (!isSlit1 && !isSlit2) {
+      const open = Math.abs(j - slit1) <= half || Math.abs(j - slit2) <= half;
+      if (!open) {
         walls[wallX * ROWS + j] = 1;
         walls[(wallX + 1) * ROWS + j] = 1;
       }
@@ -329,114 +308,105 @@ document.querySelectorAll('a[href^="#"]').forEach((a) => {
   }
 
   function drop(cx, cy, radius, force) {
-    for (let x = Math.max(0, cx - radius); x < Math.min(COLS, cx + radius); x++) {
-      for (let y = Math.max(0, cy - radius); y < Math.min(ROWS, cy + radius); y++) {
-        const dist = Math.sqrt((x - cx) ** 2 + (y - cy) ** 2);
-        if (dist < radius && !walls[x * ROWS + y]) {
-          curr[x][y] += force * Math.cos((dist / radius) * Math.PI / 2);
+    const r2 = radius * radius;
+    const xmin = Math.max(1, cx - radius), xmax = Math.min(COLS - 1, cx + radius);
+    const ymin = Math.max(1, cy - radius), ymax = Math.min(ROWS - 1, cy + radius);
+    for (let x = xmin; x < xmax; x++) {
+      for (let y = ymin; y < ymax; y++) {
+        const dx = x - cx, dy = y - cy, d2 = dx * dx + dy * dy;
+        if (d2 < r2 && !walls[x * ROWS + y]) {
+          curr[x * ROWS + y] += force * Math.exp(-d2 / (r2 * 0.4));
         }
       }
     }
   }
 
   let isDown = false;
-  canvas.addEventListener("mousedown", (e) => {
-    isDown = true;
-    handleMouse(e);
-  });
-  canvas.addEventListener("mousemove", (e) => {
-    if (isDown) handleMouse(e);
-  });
-  canvas.addEventListener("mouseup", () => isDown = false);
-  canvas.addEventListener("mouseleave", () => isDown = false);
-  
-  // Random raindrops on the left side
-  setInterval(() => {
-    if (Math.random() < 0.25) {
-      drop((Math.random() * (COLS/2 - 10))|0, (Math.random() * ROWS)|0, 3, 200);
-    }
-  }, 100);
+  canvas.addEventListener("mousedown", (e) => { isDown = true; handleMouse(e); });
+  canvas.addEventListener("mousemove", (e) => { if (isDown) handleMouse(e); });
+  canvas.addEventListener("mouseup", () => (isDown = false));
+  canvas.addEventListener("mouseleave", () => (isDown = false));
 
   function handleMouse(e) {
     const rect = canvas.getBoundingClientRect();
-    const mx = (e.clientX - rect.left) / W * COLS;
-    const my = (e.clientY - rect.top) / H * ROWS;
-    drop(mx | 0, my | 0, 4, -400);
+    const mx = ((e.clientX - rect.left) / W) * COLS;
+    const my = ((e.clientY - rect.top) / H) * ROWS;
+    drop(mx | 0, my | 0, 5, -90);
   }
 
   function loop() {
     const dark = isDark();
+    time += 1;
 
+    // Wave step: curr holds u_{n-1}, prev holds u_n; write u_{n+1} into curr
     for (let i = 1; i < COLS - 1; i++) {
+      const base = i * ROWS;
+      const left = (i - 1) * ROWS;
+      const right = (i + 1) * ROWS;
       for (let j = 1; j < ROWS - 1; j++) {
-        if (walls[i * ROWS + j]) {
-          curr[i][j] = 0;
-          continue;
-        }
-        curr[i][j] = (
-          prev[i - 1][j] +
-          prev[i + 1][j] +
-          prev[i][j - 1] +
-          prev[i][j + 1]
-        ) / 2 - curr[i][j];
-        curr[i][j] *= DAMPING;
+        const k = base + j;
+        if (walls[k]) { curr[k] = 0; continue; }
+        const n = (prev[left + j] + prev[right + j] + prev[base + j - 1] + prev[base + j + 1]) * 0.5 - curr[k];
+        curr[k] = n * DAMPING;
       }
     }
 
-    const imageData = offCtx.createImageData(COLS, ROWS);
-    const data = imageData.data;
+    // Coherent plane-wave source (ramped in)
+    const ramp = Math.min(1, time / 120);
+    const s = Math.sin(time * FREQ) * AMP * ramp;
+    for (let j = 2; j < ROWS - 2; j++) {
+      curr[SOURCE_X * ROWS + j] = s;
+    }
 
+    // Palette
+    let bgR, bgG, bgB, pR, pG, pB, nR, nG, nB, wR, wG, wB;
+    if (dark) {
+      bgR = 18; bgG = 22; bgB = 30;
+      pR = 232; pG = 148; pB = 74;    // orange crest
+      nR = 61;  nG = 217; nB = 193;   // teal trough
+      wR = 70;  wG = 70;  wB = 78;
+    } else {
+      bgR = 247; bgG = 244; bgB = 238;
+      pR = 207;  pG = 107;  pB = 79;
+      nR = 30;   nG = 111;  nB = 92;
+      wR = 150;  wG = 150;  wB = 150;
+    }
+    const wallColor = 0xff000000 | (wB << 16) | (wG << 8) | wR;
+
+    // Render with sqrt magnitude mapping for dynamic range
     for (let j = 0; j < ROWS; j++) {
       for (let i = 0; i < COLS; i++) {
-        const val = curr[i][j];
-        const idx = (j * COLS + i) * 4;
-        
+        const k = i * ROWS + j;
+        const p = j * COLS + i;
+        if (walls[k]) { pixels[p] = wallColor; continue; }
+        const v = curr[k];
+        const mag = Math.min(1, Math.sqrt(Math.abs(v) / 80));
         let r, g, b;
-        if (walls[i * ROWS + j]) {
-          r = dark ? 80 : 160;
-          g = dark ? 80 : 160;
-          b = dark ? 80 : 160;
-        } else if (dark) {
-          r = Math.min(255, Math.max(0, 24 + val));
-          g = Math.min(255, Math.max(0, 24 + val * 0.8));
-          b = Math.min(255, Math.max(0, 30 + val * 0.5));
-          if(val < 0) {
-            r = Math.min(255, Math.max(0, 24));
-            g = Math.min(255, Math.max(0, 24 + Math.abs(val)*0.5));
-            b = Math.min(255, Math.max(0, 30 + Math.abs(val)));
-          }
+        if (v >= 0) {
+          r = bgR + (pR - bgR) * mag;
+          g = bgG + (pG - bgG) * mag;
+          b = bgB + (pB - bgB) * mag;
         } else {
-          if(val > 0) {
-            r = Math.min(255, Math.max(0, 245 - val));
-            g = Math.min(255, Math.max(0, 245 - val*0.2));
-            b = Math.min(255, Math.max(0, 247));
-          } else {
-            r = Math.min(255, Math.max(0, 245));
-            g = Math.min(255, Math.max(0, 245 - Math.abs(val)*0.1));
-            b = Math.min(255, Math.max(0, 247 + Math.abs(val)*0.5));
-          }
+          r = bgR + (nR - bgR) * mag;
+          g = bgG + (nG - bgG) * mag;
+          b = bgB + (nB - bgB) * mag;
         }
-
-        data[idx] = r;
-        data[idx + 1] = g;
-        data[idx + 2] = b;
-        data[idx + 3] = 255;
+        pixels[p] = 0xff000000 | ((b & 0xff) << 16) | ((g & 0xff) << 8) | (r & 0xff);
       }
     }
     offCtx.putImageData(imageData, 0, 0);
 
     ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = "high";
     ctx.drawImage(off, 0, 0, W, H);
 
-    let temp = prev;
-    prev = curr;
-    curr = temp;
+    const temp = prev; prev = curr; curr = temp;
 
     requestAnimationFrame(loop);
   }
 
-  init();
-  drop(COLS / 4, ROWS / 2, 8, 500);
+  resize();
+  setupWalls();
   window.addEventListener("resize", resize);
   loop();
 })();
@@ -514,18 +484,18 @@ document.querySelectorAll('a[href^="#"]').forEach((a) => {
     const len = Math.sqrt(dx * dx + dy * dy) || 1;
     const nx = -dy / len, ny = dx / len;
     const amp = Math.min(4, len * 0.06);
-    const segs = coils * 2;
     const entry = 0.08;
+    const steps = Math.max(40, coils * 16);
 
     ctx.beginPath();
     ctx.moveTo(ax, ay);
-    ctx.lineTo(ax + dx * entry, ay + dy * entry);
-    for (let i = 1; i < segs; i++) {
-      const t = entry + (i / segs) * (1 - 2 * entry);
-      const side = (i % 2 === 0 ? 1 : -1) * amp;
+    for (let i = 1; i <= steps; i++) {
+      const u = i / steps;
+      const t = entry + u * (1 - 2 * entry);
+      const env = Math.sin(Math.PI * u);
+      const side = Math.sin(u * coils * Math.PI * 2) * amp * env;
       ctx.lineTo(ax + dx * t + nx * side, ay + dy * t + ny * side);
     }
-    ctx.lineTo(ax + dx * (1 - entry), ay + dy * (1 - entry));
     ctx.lineTo(bx, by);
     ctx.stroke();
   }
@@ -675,7 +645,7 @@ document.querySelectorAll('a[href^="#"]').forEach((a) => {
 
       ctx.strokeStyle = dark
         ? "rgba(91, 242, 155, 0.4)"
-        : "rgba(67, 233, 123, 0.4)";
+        : "rgba(20, 110, 60, 0.4)";
       ctx.lineWidth = 1.5;
       ctx.stroke();
 
@@ -690,7 +660,7 @@ document.querySelectorAll('a[href^="#"]').forEach((a) => {
       }
       ctx.strokeStyle = dark
         ? "rgba(91, 242, 155, 1)"
-        : "rgba(67, 233, 123, 0.8)";
+        : "rgba(20, 110, 60, 0.9)";
       ctx.lineWidth = 2;
       ctx.stroke();
     }
@@ -804,15 +774,15 @@ document.querySelectorAll('a[href^="#"]').forEach((a) => {
           data[idx + 1] = (v * 217 + (1 - v) * 20) | 0;
           data[idx + 2] = (v * 193 + (1 - v) * 30) | 0;
         } else {
-          data[idx] = (v * 207 + (1 - v) * 245) | 0;
-          data[idx + 1] = (v * 107 + (1 - v) * 239) | 0;
-          data[idx + 2] = (v * 79 + (1 - v) * 230) | 0;
+          data[idx] = (v * 70 + (1 - v) * 245) | 0;
+          data[idx + 1] = (v * 25 + (1 - v) * 239) | 0;
+          data[idx + 2] = (v * 15 + (1 - v) * 230) | 0;
         }
         data[idx + 3] = 255;
       }
     }
     offCtx.putImageData(imageData, 0, 0);
-    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingEnabled = false;
     ctx.drawImage(off, 0, 0, W, H);
 
     requestAnimationFrame(loop);
@@ -1059,6 +1029,14 @@ document.querySelectorAll('a[href^="#"]').forEach((a) => {
     ctx.stroke();
     ctx.setLineDash([]);
 
+    // Color normalization — rescale against the hover-adjusted vmax
+    // so throttled cars still span the full red→green gradient.
+    let vRef = 0.1;
+    for (let i = 0; i < numCars; i++) {
+      const cap = isHovered ? cars[i].vmax * 0.25 : cars[i].vmax;
+      if (cap > vRef) vRef = cap;
+    }
+
     // Draw cars
     for (let i = 0; i < numCars; i++) {
       const angle = cars[i].x / radius;
@@ -1074,7 +1052,7 @@ document.querySelectorAll('a[href^="#"]').forEach((a) => {
       const cw = 5, ch = 10;
       ctx.beginPath();
       ctx.roundRect(-cw / 2, -ch / 2, cw, ch, 2);
-      const vRatio = Math.min(cars[i].v / 1.6, 1.0);
+      const vRatio = Math.min(cars[i].v / vRef, 1.0);
       const r = Math.floor(255 * (1 - vRatio));
       const g = Math.floor(200 * vRatio);
       ctx.fillStyle = `rgb(${r}, ${g}, 80)`;

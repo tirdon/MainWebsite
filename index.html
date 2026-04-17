@@ -12,7 +12,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link
-    href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Syne:wght@700;800&display=swap"
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Instrument+Serif:ital@0;1&display=swap"
     rel="stylesheet" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/dreampulse/computer-modern-web-font@master/fonts.css" />
 
@@ -68,10 +68,10 @@
 
   <div class="main-content">
     <!-- ═══════════ HERO ═══════════ -->
-    <div id="about" class="apple-scroll-section">
-      <div class="apple-scroll-sticky">
+    <div id="about" class="hero-scroll">
+      <div class="hero-sticky">
         <h1 id="name" data-text="Thiradon Mueangmo">Thiradon Mueangmo</h1>
-        <p class="apple-text-reveal">
+        <p class="text-reveal">
           Hello there! I am a Physicist with a passion for bridging the gap
           between theoretical sciences and software. My work spans from
           low-level embedded systems (like ESP32 and Raspberry Pi pico w) to
@@ -232,11 +232,11 @@
           </div>
         </span>
 
-        <!-- 3: Elastic Double Pendulum -->
+        <!-- 3: Reaction-Diffusion -->
         <span>
           <div class="physics-canvas-wrapper">
-            <h3>Elastic Double Pendulum</h3>
-            <canvas id="springPendSim" class="physics-canvas"></canvas>
+            <h3>Reaction-Diffusion</h3>
+            <canvas id="reactionSim" class="physics-canvas"></canvas>
           </div>
         </span>
 
@@ -256,11 +256,11 @@
           </div>
         </span>
 
-        <!-- 6: Reaction-Diffusion -->
+        <!-- 6: Elastic Double Pendulum -->
         <span>
           <div class="physics-canvas-wrapper">
-            <h3>Reaction-Diffusion</h3>
-            <canvas id="reactionSim" class="physics-canvas"></canvas>
+            <h3>Elastic Double Pendulum</h3>
+            <canvas id="springPendSim" class="physics-canvas"></canvas>
           </div>
         </span>
 
@@ -322,7 +322,10 @@
         </button>
         <div class="project-cards" id="projectTrack">
           <div class="project-card">
-            <span class="project-card-icon">🌿</span>
+            <div class="project-card-image">
+              <img src="https://placehold.co/600x300/2c5f4b/f1ede4?text=IoT+Irrigation"
+                alt="IoT Irrigation Controller placeholder" loading="lazy" />
+            </div>
             <h3>IoT Irrigation Controller</h3>
             <p>
               ESP32-C6 based smart irrigation system using Matter protocol, with
@@ -337,7 +340,10 @@
             </div>
           </div>
           <div class="project-card">
-            <span class="project-card-icon">🎬</span>
+            <div class="project-card-image">
+              <img src="https://placehold.co/600x300/6b4e9c/f1ede4?text=Storyboard+ECS"
+                alt="Storyboard ECS Framework placeholder" loading="lazy" />
+            </div>
             <h3>Storyboard ECS Framework</h3>
             <p>
               A WebGPU-powered mathematical animation engine inspired by
@@ -349,7 +355,10 @@
             </div>
           </div>
           <div class="project-card">
-            <span class="project-card-icon">🎭</span>
+            <div class="project-card-image">
+              <img src="https://placehold.co/600x300/c4583a/f1ede4?text=Character+Deformer"
+                alt="Character Deformer placeholder" loading="lazy" />
+            </div>
             <h3>Character Deformer</h3>
             <p>
               Real-time 2D character animation with mesh deformers (warp,
@@ -361,7 +370,10 @@
             </div>
           </div>
           <div class="project-card">
-            <span class="project-card-icon">⚙️</span>
+            <div class="project-card-image">
+              <img src="https://placehold.co/600x300/2d3142/f1ede4?text=Embedded+Swift"
+                alt="Embedded Swift Interop placeholder" loading="lazy" />
+            </div>
             <h3>Embedded Swift Interop</h3>
             <p>
               Bridging FreeRTOS C macros to Swift via C++ shims, enabling
@@ -378,7 +390,10 @@
             </div>
           </div>
           <div class="project-card">
-            <span class="project-card-icon">📈</span>
+            <div class="project-card-image">
+              <img src="https://placehold.co/600x300/3a6e9c/f1ede4?text=Graphwar+Parser"
+                alt="Graphwar Parser placeholder" loading="lazy" />
+            </div>
             <h3>Graphwar Parser</h3>
             <p>
               A WebAssembly-compatible parser for Graphwar utilizing Swift
@@ -391,7 +406,10 @@
             </div>
           </div>
           <div class="project-card">
-            <span class="project-card-icon">⚛️</span>
+            <div class="project-card-image">
+              <img src="https://placehold.co/600x300/d4a23c/1a1a1a?text=Interactive+Physics+UI"
+                alt="Interactive Physics UI placeholder" loading="lazy" />
+            </div>
             <h3>Interactive Physics UI</h3>
             <p>
               A dynamically rendered portfolio featuring custom fluid, chaos,
