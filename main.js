@@ -281,9 +281,7 @@ document.querySelectorAll('a[href^="#"]').forEach((a) => {
 });
 
 // ════════════════════════════════════
-// PHYSICS SIM 1: 2D Wave Dynamics
-// ════════════════════════════════════
-(() => {
+(() => { // PHYSICS SIM 1: 2D Wave Dynamics
   const canvas = document.getElementById("waveSim");
   if (!canvas) return;
   const ctx = canvas.getContext("2d");
@@ -431,9 +429,327 @@ document.querySelectorAll('a[href^="#"]').forEach((a) => {
 })();
 
 // ════════════════════════════════════
-// PHYSICS SIM 2: Elastic Double Pendulum
+(() => { // PHYSICS SIM 2: Reaction-Diffusion (Gray-Scott)
+  const canvas = document.getElementById("reactionSim");
+  if (!canvas) return;
+  const ctx = canvas.getContext("2d");
+  let W, H;
+
+  const GW = 120, GH = 80;
+  let U, V, nU, nV;
+  const Du = 0.16, Dv = 0.08;
+  const f = 0.040, k = 0.060;
+
+  const off = document.createElement("canvas");
+  off.width = GW;
+  off.height = GH;
+  const offCtx = off.getContext("2d");
+
+  function resize() {
+    ({ W, H } = resizeCanvas(canvas));
+  }
+
+  function alloc() {
+    U = []; V = []; nU = []; nV = [];
+    for (let i = 0; i < GW; i++) {
+      U[i] = new Float32Array(GH);
+      V[i] = new Float32Array(GH);
+      nU[i] = new Float32Array(GH);
+      nV[i] = new Float32Array(GH);
+      for (let j = 0; j < GH; j++) U[i][j] = 1.0;
+    }
+  }
+
+  function seed(cx, cy) {
+    for (let di = -3; di <= 3; di++) {
+      for (let dj = -3; dj <= 3; dj++) {
+        const gi = ((cx + di + GW) % GW) | 0;
+        const gj = ((cy + dj + GH) % GH) | 0;
+        U[gi][gj] = 0.5;
+        V[gi][gj] = 0.25 + Math.random() * 0.01;
+      }
+    }
+  }
+
+  function init() {
+    resize();
+    alloc();
+    seed(GW / 2, GH / 2);
+    seed(GW / 4, GH / 3);
+    seed((3 * GW) / 4, (2 * GH) / 3);
+  }
+
+  let isDraggingRD = false;
+  canvas.addEventListener("mousedown", (e) => {
+    isDraggingRD = true;
+    handleRDInteract(e);
+  });
+  canvas.addEventListener("mousemove", (e) => {
+    if (isDraggingRD) handleRDInteract(e);
+  });
+  canvas.addEventListener("mouseup", () => isDraggingRD = false);
+  canvas.addEventListener("mouseleave", () => isDraggingRD = false);
+
+  function handleRDInteract(e) {
+    const rect = canvas.getBoundingClientRect();
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
+    seed(((mx / W) * GW) | 0, ((my / H) * GH) | 0);
+  }
+
+  function loop() {
+    const dark = isDark();
+
+    for (let step = 0; step < 6; step++) {
+      for (let i = 0; i < GW; i++) {
+        const ip = (i + 1) % GW, im = (i - 1 + GW) % GW;
+        for (let j = 0; j < GH; j++) {
+          const jp = (j + 1) % GH, jm = (j - 1 + GH) % GH;
+          const lapU = U[ip][j] + U[im][j] + U[i][jp] + U[i][jm] - 4 * U[i][j];
+          const lapV = V[ip][j] + V[im][j] + V[i][jp] + V[i][jm] - 4 * V[i][j];
+          const uvv = U[i][j] * V[i][j] * V[i][j];
+          nU[i][j] = U[i][j] + Du * lapU - uvv + f * (1 - U[i][j]);
+          nV[i][j] = V[i][j] + Dv * lapV + uvv - (f + k) * V[i][j];
+        }
+      }
+      let t;
+      t = U; U = nU; nU = t;
+      t = V; V = nV; nV = t;
+    }
+
+    const imageData = offCtx.createImageData(GW, GH);
+    const data = imageData.data;
+    for (let j = 0; j < GH; j++) {
+      for (let i = 0; i < GW; i++) {
+        const v = V[i][j];
+        const idx = (j * GW + i) * 4;
+        if (dark) {
+          data[idx] = (v * 61) | 0;
+          data[idx + 1] = (v * 217 + (1 - v) * 20) | 0;
+          data[idx + 2] = (v * 193 + (1 - v) * 30) | 0;
+        } else {
+          data[idx] = (v * 70 + (1 - v) * 245) | 0;
+          data[idx + 1] = (v * 25 + (1 - v) * 239) | 0;
+          data[idx + 2] = (v * 15 + (1 - v) * 230) | 0;
+        }
+        data[idx + 3] = 255;
+      }
+    }
+    offCtx.putImageData(imageData, 0, 0);
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(off, 0, 0, W, H);
+  }
+
+  init();
+  window.addEventListener("resize", resize);
+  runWhenVisible(canvas, loop);
+})();
+
 // ════════════════════════════════════
-(() => {
+(() => { // PHYSICS SIM 3: Ising Model (2D Spin Lattice)
+  const canvas = document.getElementById("isingSim");
+  if (!canvas) return;
+  const ctx = canvas.getContext("2d");
+  let W, H;
+
+  const GRID = 64;
+  const spins = [];
+  let T = 2.27; // near critical temperature Tc ≈ 2.269
+  let tempMode = 1; // 0=cold, 1=critical, 2=hot
+
+  const off = document.createElement("canvas");
+  off.width = GRID;
+  off.height = GRID;
+  const offCtx = off.getContext("2d");
+
+  function resize() {
+    ({ W, H } = resizeCanvas(canvas));
+  }
+
+  function init() {
+    resize();
+    spins.length = 0;
+    for (let i = 0; i < GRID; i++) {
+      spins[i] = new Int8Array(GRID);
+      for (let j = 0; j < GRID; j++) {
+        spins[i][j] = Math.random() < 0.5 ? 1 : -1;
+      }
+    }
+  }
+
+  // Click cycles temperature: cold → critical → hot
+  canvas.addEventListener("click", () => {
+    tempMode = (tempMode + 1) % 3;
+    T = [0.5, 2.27, 5.0][tempMode];
+  });
+
+  let mouseX = null, mouseY = null;
+  canvas.addEventListener("mousemove", (e) => {
+    const rect = canvas.getBoundingClientRect();
+    mouseX = e.clientX - rect.left;
+    mouseY = e.clientY - rect.top;
+  });
+  canvas.addEventListener("mouseleave", () => {
+    mouseX = null;
+    mouseY = null;
+  });
+
+  function loop() {
+    const dark = isDark();
+    const cellW = W / GRID;
+    const cellH = H / GRID;
+
+    // Metropolis-Hastings: one full sweep per frame
+    const steps = GRID * GRID;
+    for (let s = 0; s < steps; s++) {
+      const i = (Math.random() * GRID) | 0;
+      const j = (Math.random() * GRID) | 0;
+
+      // Mouse proximity heats spins locally
+      let localT = T;
+      if (mouseX !== null) {
+        const dx = (i + 0.5) * cellW - mouseX;
+        const dy = (j + 0.5) * cellH - mouseY;
+        if (dx * dx + dy * dy < 1600) localT = Math.max(localT, 5.0);
+      }
+
+      const spin = spins[i][j];
+      const neighbors =
+        spins[(i + 1) % GRID][j] +
+        spins[(i - 1 + GRID) % GRID][j] +
+        spins[i][(j + 1) % GRID] +
+        spins[i][(j - 1 + GRID) % GRID];
+      const dE = 2 * spin * neighbors;
+
+      if (dE <= 0 || Math.random() < Math.exp(-dE / localT)) {
+        spins[i][j] = -spin;
+      }
+    }
+
+    // Render to offscreen canvas at grid resolution, then scale up
+    const imageData = offCtx.createImageData(GRID, GRID);
+    const data = imageData.data;
+    const upR = dark ? 232 : 207, upG = dark ? 148 : 107, upB = dark ? 74 : 79;
+    const dnR = dark ? 26 : 245, dnG = dark ? 26 : 239, dnB = dark ? 46 : 230;
+
+    for (let j = 0; j < GRID; j++) {
+      for (let i = 0; i < GRID; i++) {
+        const idx = (j * GRID + i) * 4;
+        if (spins[i][j] === 1) {
+          data[idx] = upR; data[idx + 1] = upG; data[idx + 2] = upB;
+        } else {
+          data[idx] = dnR; data[idx + 1] = dnG; data[idx + 2] = dnB;
+        }
+        data[idx + 3] = 255;
+      }
+    }
+    offCtx.putImageData(imageData, 0, 0);
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(off, 0, 0, W, H);
+  }
+
+  init();
+  window.addEventListener("resize", resize);
+  runWhenVisible(canvas, loop);
+})();
+
+// ════════════════════════════════════
+(() => { // PHYSICS SIM 4: Lorenz Attractor
+  const canvas = document.getElementById("lorenzSim");
+  if (!canvas) return;
+  const ctx = canvas.getContext("2d");
+  let W, H;
+
+  // Lorenz parameters
+  const sigma = 10,
+    rho = 28,
+    beta = 8 / 3;
+  let x = 0.1,
+    y = 0,
+    z = 0;
+  const dt = 0.01;
+  let points = [];
+  const MAX_POINTS = 800;
+
+  function resize() {
+    ({ W, H } = resizeCanvas(canvas));
+    points = [];
+    x = 0.1;
+    y = 0;
+    z = 0;
+  }
+
+  let isHovered = false;
+  canvas.addEventListener("mouseenter", () => (isHovered = true));
+  canvas.addEventListener("mouseleave", () => (isHovered = false));
+
+  canvas.addEventListener("click", () => {
+    points.length = 0;
+    x = (Math.random() - 0.5) * 2;
+    y = (Math.random() - 0.5) * 2;
+    z = Math.random() * 20;
+  });
+
+  function loop() {
+    const dark = isDark();
+
+    // Run multiple physics steps per frame when hovered to increase speed without losing numerical stability
+    const steps = isHovered ? 5 : 1;
+    for (let s = 0; s < steps; s++) {
+      const dx = sigma * (y - x) * dt;
+      const dy = (x * (rho - z) - y) * dt;
+      const dz = (x * y - beta * z) * dt;
+
+      x += dx;
+      y += dy;
+      z += dz;
+
+      points.push({ x, y, z });
+      if (points.length > MAX_POINTS) points.shift();
+    }
+
+    ctx.clearRect(0, 0, W, H);
+
+    if (points.length > 2) {
+      ctx.beginPath();
+      const scale = Math.min(W, H) * 0.02;
+      const ox = W / 2;
+      const oy = H / 2;
+
+      ctx.moveTo(ox + points[0].x * scale, oy - (points[0].z - 24) * scale);
+      for (let i = 1; i < points.length; i++) {
+        ctx.lineTo(ox + points[i].x * scale, oy - (points[i].z - 24) * scale);
+      }
+
+      ctx.strokeStyle = dark
+        ? "rgba(91, 242, 155, 0.4)"
+        : "rgba(20, 110, 60, 0.4)";
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+
+      const recentStart = Math.max(0, points.length - 100);
+      ctx.beginPath();
+      ctx.moveTo(
+        ox + points[recentStart].x * scale,
+        oy - (points[recentStart].z - 24) * scale,
+      );
+      for (let i = recentStart + 1; i < points.length; i++) {
+        ctx.lineTo(ox + points[i].x * scale, oy - (points[i].z - 24) * scale);
+      }
+      ctx.strokeStyle = dark
+        ? "rgba(91, 242, 155, 1)"
+        : "rgba(20, 110, 60, 0.9)";
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
+  }
+  resize();
+  window.addEventListener("resize", resize);
+  runWhenVisible(canvas, loop);
+})();
+
+// ════════════════════════════════════
+(() => { // PHYSICS SIM 5: Elastic Double Pendulum
   const canvas = document.getElementById("springPendSim");
   if (!canvas) return;
   const ctx = canvas.getContext("2d");
@@ -590,334 +906,7 @@ document.querySelectorAll('a[href^="#"]').forEach((a) => {
   runWhenVisible(canvas, loop);
 })();
 
-// ════════════════════════════════════
-// PHYSICS SIM 3: Lorenz Attractor
-// ════════════════════════════════════
-(() => {
-  const canvas = document.getElementById("lorenzSim");
-  if (!canvas) return;
-  const ctx = canvas.getContext("2d");
-  let W, H;
-
-  // Lorenz parameters
-  const sigma = 10,
-    rho = 28,
-    beta = 8 / 3;
-  let x = 0.1,
-    y = 0,
-    z = 0;
-  const dt = 0.01;
-  let points = [];
-  const MAX_POINTS = 800;
-
-  function resize() {
-    ({ W, H } = resizeCanvas(canvas));
-    points = [];
-    x = 0.1;
-    y = 0;
-    z = 0;
-  }
-
-  let isHovered = false;
-  canvas.addEventListener("mouseenter", () => (isHovered = true));
-  canvas.addEventListener("mouseleave", () => (isHovered = false));
-
-  canvas.addEventListener("click", () => {
-    points.length = 0;
-    x = (Math.random() - 0.5) * 2;
-    y = (Math.random() - 0.5) * 2;
-    z = Math.random() * 20;
-  });
-
-  function loop() {
-    const dark = isDark();
-
-    // Run multiple physics steps per frame when hovered to increase speed without losing numerical stability
-    const steps = isHovered ? 5 : 1;
-    for (let s = 0; s < steps; s++) {
-      const dx = sigma * (y - x) * dt;
-      const dy = (x * (rho - z) - y) * dt;
-      const dz = (x * y - beta * z) * dt;
-
-      x += dx;
-      y += dy;
-      z += dz;
-
-      points.push({ x, y, z });
-      if (points.length > MAX_POINTS) points.shift();
-    }
-
-    ctx.clearRect(0, 0, W, H);
-
-    if (points.length > 2) {
-      ctx.beginPath();
-      const scale = Math.min(W, H) * 0.02;
-      const ox = W / 2;
-      const oy = H / 2;
-
-      ctx.moveTo(ox + points[0].x * scale, oy - (points[0].z - 24) * scale);
-      for (let i = 1; i < points.length; i++) {
-        ctx.lineTo(ox + points[i].x * scale, oy - (points[i].z - 24) * scale);
-      }
-
-      ctx.strokeStyle = dark
-        ? "rgba(91, 242, 155, 0.4)"
-        : "rgba(20, 110, 60, 0.4)";
-      ctx.lineWidth = 1.5;
-      ctx.stroke();
-
-      const recentStart = Math.max(0, points.length - 100);
-      ctx.beginPath();
-      ctx.moveTo(
-        ox + points[recentStart].x * scale,
-        oy - (points[recentStart].z - 24) * scale,
-      );
-      for (let i = recentStart + 1; i < points.length; i++) {
-        ctx.lineTo(ox + points[i].x * scale, oy - (points[i].z - 24) * scale);
-      }
-      ctx.strokeStyle = dark
-        ? "rgba(91, 242, 155, 1)"
-        : "rgba(20, 110, 60, 0.9)";
-      ctx.lineWidth = 2;
-      ctx.stroke();
-    }
-  }
-  resize();
-  window.addEventListener("resize", resize);
-  runWhenVisible(canvas, loop);
-})();
-
-// ════════════════════════════════════
-// PHYSICS SIM 4: Reaction-Diffusion (Gray-Scott)
-// ════════════════════════════════════
-(() => {
-  const canvas = document.getElementById("reactionSim");
-  if (!canvas) return;
-  const ctx = canvas.getContext("2d");
-  let W, H;
-
-  const GW = 120, GH = 80;
-  let U, V, nU, nV;
-  const Du = 0.16, Dv = 0.08;
-  const f = 0.040, k = 0.060;
-
-  const off = document.createElement("canvas");
-  off.width = GW;
-  off.height = GH;
-  const offCtx = off.getContext("2d");
-
-  function resize() {
-    ({ W, H } = resizeCanvas(canvas));
-  }
-
-  function alloc() {
-    U = []; V = []; nU = []; nV = [];
-    for (let i = 0; i < GW; i++) {
-      U[i] = new Float32Array(GH);
-      V[i] = new Float32Array(GH);
-      nU[i] = new Float32Array(GH);
-      nV[i] = new Float32Array(GH);
-      for (let j = 0; j < GH; j++) U[i][j] = 1.0;
-    }
-  }
-
-  function seed(cx, cy) {
-    for (let di = -3; di <= 3; di++) {
-      for (let dj = -3; dj <= 3; dj++) {
-        const gi = ((cx + di + GW) % GW) | 0;
-        const gj = ((cy + dj + GH) % GH) | 0;
-        U[gi][gj] = 0.5;
-        V[gi][gj] = 0.25 + Math.random() * 0.01;
-      }
-    }
-  }
-
-  function init() {
-    resize();
-    alloc();
-    seed(GW / 2, GH / 2);
-    seed(GW / 4, GH / 3);
-    seed((3 * GW) / 4, (2 * GH) / 3);
-  }
-
-  let isDraggingRD = false;
-  canvas.addEventListener("mousedown", (e) => {
-    isDraggingRD = true;
-    handleRDInteract(e);
-  });
-  canvas.addEventListener("mousemove", (e) => {
-    if (isDraggingRD) handleRDInteract(e);
-  });
-  canvas.addEventListener("mouseup", () => isDraggingRD = false);
-  canvas.addEventListener("mouseleave", () => isDraggingRD = false);
-
-  function handleRDInteract(e) {
-    const rect = canvas.getBoundingClientRect();
-    const mx = e.clientX - rect.left;
-    const my = e.clientY - rect.top;
-    seed(((mx / W) * GW) | 0, ((my / H) * GH) | 0);
-  }
-
-  function loop() {
-    const dark = isDark();
-
-    for (let step = 0; step < 6; step++) {
-      for (let i = 0; i < GW; i++) {
-        const ip = (i + 1) % GW, im = (i - 1 + GW) % GW;
-        for (let j = 0; j < GH; j++) {
-          const jp = (j + 1) % GH, jm = (j - 1 + GH) % GH;
-          const lapU = U[ip][j] + U[im][j] + U[i][jp] + U[i][jm] - 4 * U[i][j];
-          const lapV = V[ip][j] + V[im][j] + V[i][jp] + V[i][jm] - 4 * V[i][j];
-          const uvv = U[i][j] * V[i][j] * V[i][j];
-          nU[i][j] = U[i][j] + Du * lapU - uvv + f * (1 - U[i][j]);
-          nV[i][j] = V[i][j] + Dv * lapV + uvv - (f + k) * V[i][j];
-        }
-      }
-      let t;
-      t = U; U = nU; nU = t;
-      t = V; V = nV; nV = t;
-    }
-
-    const imageData = offCtx.createImageData(GW, GH);
-    const data = imageData.data;
-    for (let j = 0; j < GH; j++) {
-      for (let i = 0; i < GW; i++) {
-        const v = V[i][j];
-        const idx = (j * GW + i) * 4;
-        if (dark) {
-          data[idx] = (v * 61) | 0;
-          data[idx + 1] = (v * 217 + (1 - v) * 20) | 0;
-          data[idx + 2] = (v * 193 + (1 - v) * 30) | 0;
-        } else {
-          data[idx] = (v * 70 + (1 - v) * 245) | 0;
-          data[idx + 1] = (v * 25 + (1 - v) * 239) | 0;
-          data[idx + 2] = (v * 15 + (1 - v) * 230) | 0;
-        }
-        data[idx + 3] = 255;
-      }
-    }
-    offCtx.putImageData(imageData, 0, 0);
-    ctx.imageSmoothingEnabled = false;
-    ctx.drawImage(off, 0, 0, W, H);
-  }
-
-  init();
-  window.addEventListener("resize", resize);
-  runWhenVisible(canvas, loop);
-})();
-
-// ════════════════════════════════════
-// PHYSICS SIM 5: Ising Model (2D Spin Lattice)
-// ════════════════════════════════════
-(() => {
-  const canvas = document.getElementById("isingSim");
-  if (!canvas) return;
-  const ctx = canvas.getContext("2d");
-  let W, H;
-
-  const GRID = 64;
-  const spins = [];
-  let T = 2.27; // near critical temperature Tc ≈ 2.269
-  let tempMode = 1; // 0=cold, 1=critical, 2=hot
-
-  const off = document.createElement("canvas");
-  off.width = GRID;
-  off.height = GRID;
-  const offCtx = off.getContext("2d");
-
-  function resize() {
-    ({ W, H } = resizeCanvas(canvas));
-  }
-
-  function init() {
-    resize();
-    spins.length = 0;
-    for (let i = 0; i < GRID; i++) {
-      spins[i] = new Int8Array(GRID);
-      for (let j = 0; j < GRID; j++) {
-        spins[i][j] = Math.random() < 0.5 ? 1 : -1;
-      }
-    }
-  }
-
-  // Click cycles temperature: cold → critical → hot
-  canvas.addEventListener("click", () => {
-    tempMode = (tempMode + 1) % 3;
-    T = [0.5, 2.27, 5.0][tempMode];
-  });
-
-  let mouseX = null, mouseY = null;
-  canvas.addEventListener("mousemove", (e) => {
-    const rect = canvas.getBoundingClientRect();
-    mouseX = e.clientX - rect.left;
-    mouseY = e.clientY - rect.top;
-  });
-  canvas.addEventListener("mouseleave", () => {
-    mouseX = null;
-    mouseY = null;
-  });
-
-  function loop() {
-    const dark = isDark();
-    const cellW = W / GRID;
-    const cellH = H / GRID;
-
-    // Metropolis-Hastings: one full sweep per frame
-    const steps = GRID * GRID;
-    for (let s = 0; s < steps; s++) {
-      const i = (Math.random() * GRID) | 0;
-      const j = (Math.random() * GRID) | 0;
-
-      // Mouse proximity heats spins locally
-      let localT = T;
-      if (mouseX !== null) {
-        const dx = (i + 0.5) * cellW - mouseX;
-        const dy = (j + 0.5) * cellH - mouseY;
-        if (dx * dx + dy * dy < 1600) localT = Math.max(localT, 5.0);
-      }
-
-      const spin = spins[i][j];
-      const neighbors =
-        spins[(i + 1) % GRID][j] +
-        spins[(i - 1 + GRID) % GRID][j] +
-        spins[i][(j + 1) % GRID] +
-        spins[i][(j - 1 + GRID) % GRID];
-      const dE = 2 * spin * neighbors;
-
-      if (dE <= 0 || Math.random() < Math.exp(-dE / localT)) {
-        spins[i][j] = -spin;
-      }
-    }
-
-    // Render to offscreen canvas at grid resolution, then scale up
-    const imageData = offCtx.createImageData(GRID, GRID);
-    const data = imageData.data;
-    const upR = dark ? 232 : 207, upG = dark ? 148 : 107, upB = dark ? 74 : 79;
-    const dnR = dark ? 26 : 245, dnG = dark ? 26 : 239, dnB = dark ? 46 : 230;
-
-    for (let j = 0; j < GRID; j++) {
-      for (let i = 0; i < GRID; i++) {
-        const idx = (j * GRID + i) * 4;
-        if (spins[i][j] === 1) {
-          data[idx] = upR; data[idx + 1] = upG; data[idx + 2] = upB;
-        } else {
-          data[idx] = dnR; data[idx + 1] = dnG; data[idx + 2] = dnB;
-        }
-        data[idx + 3] = 255;
-      }
-    }
-    offCtx.putImageData(imageData, 0, 0);
-    ctx.imageSmoothingEnabled = false;
-    ctx.drawImage(off, 0, 0, W, H);
-  }
-
-  init();
-  window.addEventListener("resize", resize);
-  runWhenVisible(canvas, loop);
-})();
-
-// 7: 1D Traffic Flow (Nonlinear Dynamics - Enhanced Bando OV Model)
-(() => {
+(() => { // PHYSICS SIM 6: 1D Traffic Flow (Nonlinear Dynamics - Enhanced Bando OV Model)
   const canvas = document.getElementById("trafficSim");
   if (!canvas) return;
   const ctx = canvas.getContext("2d");
