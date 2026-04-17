@@ -439,6 +439,20 @@ a:hover {
   padding: 0;
 }
 
+/* Conway's Game of Life background — pinned to viewport during hero scroll */
+.hero-bg-canvas {
+  position: sticky;
+  top: 0;
+  width: 100vw;
+  height: 100vh;
+  margin-left: calc(50% - 50vw);
+  display: block;
+  margin-bottom: -100vh;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.55;
+}
+
 /* Sticky inner content stays pinned at center while scrolling through */
 .hero-sticky {
   position: sticky;
@@ -452,6 +466,7 @@ a:hover {
   max-width: 1200px;
   margin: 0 auto;
   will-change: transform;
+  z-index: 1;
 }
 
 /* ── Cinematic Name Entrance ── */
