@@ -2,7 +2,8 @@
 .claude/**
 CLAUDE.md
 node_modules/
-bun.lock
-package.json
 .gemini/**
-**firebase**
+.firebase/**
+.firebaserc
+AGENTS.md
+.agents/**

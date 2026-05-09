@@ -1,0 +1,16 @@
+{
+  "name": "mysite",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "firebase": "^10.12.2",
+    "firebase-tools": "^15.17.0"
+  },
+  "devDependencies": {},
+  "description": ""
+}
