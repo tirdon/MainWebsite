@@ -453,7 +453,6 @@ a:hover {
 .hero-scroll {
   position: relative;
   height: 250vh;
-  height: 250lvh;
   padding: 0;
 }
 
@@ -1594,7 +1593,6 @@ footer #footer span:hover svg {
 
   .hero-scroll {
     height: 200vh;
-    height: 200lvh;
   }
 
   .hero-sticky {
