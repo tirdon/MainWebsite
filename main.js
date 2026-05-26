@@ -2162,7 +2162,7 @@ document.querySelectorAll('a[href^="#"]').forEach((a) => {
     //   off 92  f32      seasonT      (0 = winter snow, 1 = green forest)
     //   off 96  f32      fade         (0 = invisible, 1 = full)
     //   off 100 f32      themeDark    (0 = light, 1 = dark)
-    //   off 104 padding to 112 (struct alignment = 16)
+    //   off 104 vec2f    canvasSize   (CSS display W,H in CSS pixels)
     const UNIFORM_SIZE = 112;
     const uniformBuffer = device.createBuffer({
       size: UNIFORM_SIZE,
@@ -2179,6 +2179,7 @@ struct Uniforms {
   seasonT: f32,
   fade: f32,
   themeDark: f32,
+  canvasSize: vec2<f32>,
 };
 @group(0) @binding(0) var<uniform> u: Uniforms;
 
@@ -2843,7 +2844,15 @@ fn particle_fs(v: ParticleOut) -> @location(0) vec4<f32> {
       const seasonT = Math.min(1, p2 / 0.7);
       setMountainOpacity(fade);
 
-      const aspect = canvas.width / canvas.height;
+      // The canvas buffer is kept at a stable device-pixel size so dynamic
+      // browser chrome doesn't trigger expensive resizes, but the CSS display
+      // size can differ (e.g. buffer = svh, display = lvh on mobile). Drive
+      // the perspective aspect from the on-screen display rect so the browser's
+      // buffer-to-display stretch lands at the intended scene aspect ratio.
+      const displayRect = canvas.getBoundingClientRect();
+      const displayW = displayRect.width || canvas.width;
+      const displayH = displayRect.height || canvas.height;
+      const aspect = displayW / displayH;
       const proj = mat4Perspective(Math.PI / 3, aspect, 0.1, 80);
       const viewMat = mat4LookAt(eye, target, up);
       const vp = mat4Mul(proj, viewMat);
@@ -2857,6 +2866,8 @@ fn particle_fs(v: ParticleOut) -> @location(0) vec4<f32> {
       uniformData[23] = seasonT;
       uniformData[24] = fade;
       uniformData[25] = isDark() ? 1 : 0;
+      uniformData[26] = displayW;
+      uniformData[27] = displayH;
       device.queue.writeBuffer(uniformBuffer, 0, uniformData);
 
       const tex = ctx.getCurrentTexture();
@@ -2902,8 +2913,12 @@ fn particle_fs(v: ParticleOut) -> @location(0) vec4<f32> {
       if (!particleCtx || !particlePipeline || !particleCanvas) return;
 
       const { p1, p2 } = getScrollPhases();
-      particleUniformData[0] = particleCanvas.width;
-      particleUniformData[1] = particleCanvas.height;
+      // Use the CSS display rect so particle pixel sizes stay consistent on
+      // screen even when the buffer was sized to a different (stable) height.
+      const particleRect = particleCanvas.getBoundingClientRect();
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      particleUniformData[0] = (particleRect.width || particleCanvas.width / dpr) * dpr;
+      particleUniformData[1] = (particleRect.height || particleCanvas.height / dpr) * dpr;
       particleUniformData[2] = nowSeconds;
       particleUniformData[3] = Math.min(1, p2 / 0.7);
       particleUniformData[4] = p1;
