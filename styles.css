@@ -467,9 +467,11 @@ a:hover {
   top: 0;
   width: 100vw;
   height: 100vh;
+  height: 100lvh;
   margin-left: calc(50% - 50vw);
   display: block;
   margin-bottom: -100vh;
+  margin-bottom: -100lvh;
   z-index: 0;
   pointer-events: none;
   opacity: 0.55;
@@ -483,6 +485,7 @@ a:hover {
   inset: 0;
   width: 100vw;
   height: 100vh;
+  height: 100lvh;
   pointer-events: none;
 }
 
@@ -631,6 +634,7 @@ a:hover {
   position: sticky;
   top: 0;
   height: 100vh;
+  height: 100lvh;
   display: flex;
   flex-direction: column;
   justify-content: center;

@@ -29,6 +29,12 @@ function resizeCanvas(canvas) {
   const dpr = window.devicePixelRatio || 1;
   const W = rect.width;
   const H = rect.height;
+  
+  // Skip resizing if width has not changed and height change is small (e.g. mobile address bar toggles)
+  if (canvas.width > 0 && Math.abs(canvas.width - W * dpr) < 1 && Math.abs(canvas.height - H * dpr) < 150 * dpr) {
+    return { W: canvas.width / dpr, H: canvas.height / dpr };
+  }
+
   canvas.width = W * dpr;
   canvas.height = H * dpr;
   canvas.getContext("2d").setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -1601,7 +1607,12 @@ document.querySelectorAll('a[href^="#"]').forEach((a) => {
       const dpr = Math.min(window.devicePixelRatio || 1, 2);
       const w = Math.max(1, Math.floor(window.innerWidth * dpr));
       const h = Math.max(1, Math.floor(window.innerHeight * dpr));
-      if (fallbackCanvas.width === w && fallbackCanvas.height === h) return;
+      
+      // Skip resizing on mobile dynamic browser chrome scrolls
+      if (fallbackCanvas.width === w && Math.abs(fallbackCanvas.height - h) < 150 * dpr) {
+        return;
+      }
+      
       fallbackCanvas.width = w;
       fallbackCanvas.height = h;
     }
@@ -2786,8 +2797,13 @@ fn particle_fs(v: ParticleOut) -> @location(0) vec4<f32> {
       const dpr = Math.min(window.devicePixelRatio || 1, 2);
       const w = Math.max(1, Math.floor(window.innerWidth * dpr));
       const h = Math.max(1, Math.floor(window.innerHeight * dpr));
-      const particleSized = !particleCanvas || (particleCanvas.width === w && particleCanvas.height === h);
-      if (canvas.width === w && canvas.height === h && particleSized && depthTex) return;
+      
+      // Skip WebGPU resize on mobile dynamic browser chrome scrolls if width remains constant and height change is small
+      if (canvas.width === w && Math.abs(canvas.height - h) < 150 * dpr && depthTex) {
+        const particleSized = !particleCanvas || (particleCanvas.width === w && Math.abs(particleCanvas.height - h) < 150 * dpr);
+        if (particleSized) return;
+      }
+      
       canvas.width = w;
       canvas.height = h;
       if (particleCanvas) {
