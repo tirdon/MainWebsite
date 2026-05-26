@@ -16,6 +16,11 @@
     rel="stylesheet" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/dreampulse/computer-modern-web-font@master/fonts.css" />
 
+  <!-- KaTeX for Math Rendering -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" crossorigin="anonymous">
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js" crossorigin="anonymous"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js" crossorigin="anonymous" onload="renderMathInElement(document.body);"></script>
+
   <link rel="stylesheet" href="styles.css?v=1.0.2" />
 </head>
 
@@ -54,8 +59,8 @@
     </nav>
     <div class="nav-actions">
       <button class="theme-toggle" id="themeToggle" aria-label="Toggle dark mode">
-        <span class="toggle-icon sun">☀️</span>
         <span class="toggle-icon moon">🌙</span>
+        <span class="toggle-icon sun">☀️</span>
       </button>
       <button class="hamburger" id="menuToggle" aria-label="Toggle menu" aria-expanded="false">
         <span></span>
@@ -234,7 +239,7 @@
         <span>
           <div class="physics-canvas-wrapper">
             <h3><a href="404.html">2D Wave Dynamics</a></h3>
-            <p class="physics-equation">u<sub>tt</sub> = c<sup>2</sup>&nabla;<sup>2</sup>u - &gamma;u<sub>t</sub></p>
+            <p class="physics-equation">$$\frac{\partial^2 u}{\partial t^2} = c^2 \nabla^2 u - \gamma \frac{\partial u}{\partial t}$$</p>
             <canvas id="waveSim" class="physics-canvas"></canvas>
           </div>
         </span>
@@ -244,8 +249,7 @@
           <div class="physics-canvas-wrapper">
             <h3><a href="404.html">Reaction-Diffusion</a></h3>
             <p class="physics-equation">
-              &part;<sub>t</sub>U = D<sub>u</sub>&nabla;<sup>2</sup>U - UV<sup>2</sup> + f(1-U)<br />
-              &part;<sub>t</sub>V = D<sub>v</sub>&nabla;<sup>2</sup>V + UV<sup>2</sup> - (f+k)V
+              $$ \begin{aligned} \frac{\partial U}{\partial t} &= D_u \nabla^2 U - UV^2 + f(1-U) \\ \frac{\partial V}{\partial t} &= D_v \nabla^2 V + UV^2 - (f+k)V \end{aligned} $$
             </p>
             <canvas id="reactionSim" class="physics-canvas"></canvas>
           </div>
@@ -255,7 +259,7 @@
         <span>
           <div class="physics-canvas-wrapper">
             <h3><a href="404.html">Ising Model</a></h3>
-            <p class="physics-equation">H = -J&sum;<sub>&lang;ij&rang;</sub>s<sub>i</sub>s<sub>j</sub>, P = e<sup>-&Delta;E/T</sup></p>
+            <p class="physics-equation">$$H = -J \sum_{\langle ij \rangle} \sigma_i \sigma_j \\ A(\mu, \nu) = \begin{cases} e^{-\beta(H_\mu - H_\nu)} & \text{if } H_\mu - H_\nu > 0 \\ 1 & \text{if otherwise} \end{cases} $$</p>
             <canvas id="isingSim" class="physics-canvas"></canvas>
           </div>
         </span>
@@ -264,7 +268,7 @@
         <span>
           <div class="physics-canvas-wrapper">
             <h3><a href="404.html">Lorenz Attractor</a></h3>
-            <p class="physics-equation">x' = &sigma;(y-x), y' = x(&rho;-z)-y, z' = xy-&beta;z</p>
+            <p class="physics-equation">$$\frac{\mathrm dx}{\mathrm dt} = \sigma(y-x), \quad \frac{\mathrm dy}{\mathrm dt} = x(\rho-z)-y, \quad \frac{\mathrm dz}{\mathrm dt} = xy-\beta z$$</p>
             <canvas id="lorenzSim" class="physics-canvas"></canvas>
           </div>
         </span>
@@ -273,7 +277,7 @@
         <span>
           <div class="physics-canvas-wrapper">
             <h3><a href="404.html">Elastic Double Pendulum</a></h3>
-            <!-- <p class="physics-equation">m a = -k(|r|-L)r&#770; + m g (this is incorrect now)</p> -->
+            <p class="physics-equation">$$L = T - V$$</p>
             <canvas id="springPendSim" class="physics-canvas"></canvas>
           </div>
         </span>
@@ -282,7 +286,7 @@
         <span>
           <div class="physics-canvas-wrapper">
             <h3><a href="404.html">Nonlinear Traffic Flow (1D)</a></h3>
-            <p class="physics-equation">dv<sub>i</sub>/dt = &alpha;(V(s<sub>i</sub>) - v<sub>i</sub>), dx<sub>i</sub>/dt = v<sub>i</sub></p>
+            <p class="physics-equation">$$\frac{\partial \rho}{\partial t} - \frac{\partial\rho v(\rho)}{\partial x} = 0$$</p>
             <canvas id="trafficSim" class="physics-canvas"></canvas>
           </div>
         </span>
@@ -340,7 +344,7 @@
             <div class="project-card-image">
               <img src="assets/projects/graphwar-parser.jpg" alt="Graphwar Parser project artwork" loading="lazy" />
             </div>
-            <h3>Graphwar Parser</h3>
+            <h3><a href="404.html">Graphwar Parser</a></h3>
             <p>
               A WebAssembly-compatible inspired by Graphwar utilizing Swift
               structured concurrency and JavaScriptKit for seamless JS interop.
@@ -356,7 +360,7 @@
               <img src="assets/projects/interactive-physics-ui.jpg" alt="Interactive Physics UI project artwork"
                 loading="lazy" />
             </div>
-            <h3>Interactive Physics UI</h3>
+            <h3><a href="404.html">Interactive Physics UI</a></h3>
             <p>
               A dynamically rendered portfolio featuring custom fluid, chaos,
               and flocking simulations built from scratch on the HTML5 Canvas
@@ -372,7 +376,7 @@
               <img src="assets/projects/iot-irrigation-controller.jpg" alt="IoT Irrigation Controller project artwork"
                 loading="lazy" />
             </div>
-            <h3>IoT Irrigation Controller</h3>
+            <h3><a href="404.html">IoT Irrigation Controller</a></h3>
             <p>
               ESP32-C6 based smart irrigation system using Matter protocol, with
               capacitive soil moisture sensor, DHT22 sensors and IR remote control
@@ -390,7 +394,7 @@
               <img src="assets/projects/storyboard-ecs-framework.jpg" alt="Storyboard ECS Framework project artwork"
                 loading="lazy" />
             </div>
-            <h3>Storyboard ECS Framework</h3>
+            <h3><a href="404.html">Storyboard ECS Framework</a></h3>
             <p>
               A WebGPU-powered mathematical animation engine inspired by
               3Blue1Brown's Manim, with entity-component-system architecture.
@@ -405,7 +409,7 @@
               <img src="assets/projects/character-deformer.jpg" alt="Character Deformer project artwork"
                 loading="lazy" />
             </div>
-            <h3>Character Deformer</h3>
+            <h3><a href="404.html">Character Deformer</a></h3>
             <p>
               Real-time 2D character animation with mesh deformers (warp,
               rotation, bend) and interactive controls powered by WebGPU.
@@ -420,7 +424,7 @@
               <img src="assets/projects/embedded-swift-interop.jpg" alt="Embedded Swift Interop project artwork"
                 loading="lazy" />
             </div>
-            <h3>Embedded Swift Interop</h3>
+            <h3><a href="404.html">Embedded Swift Interop</a></h3>
             <p>
               Bridging FreeRTOS C macros to Swift via C++ shims, enabling
               zero-overhead task notifications and GPIO ISRs on ESP32-C3.

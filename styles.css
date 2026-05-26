@@ -912,14 +912,22 @@ footer h2::after,
 
 .physics-equation {
   align-self: stretch;
-  min-height: 2.7em;
+  height: 72px;
   margin: 0 0 14px;
   color: var(--text-muted);
   font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
   font-size: 0.74rem;
   line-height: 1.35;
   letter-spacing: 0;
-  overflow-wrap: anywhere;
+  overflow-x: auto;
+  overflow-y: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.physics-equation .katex-display {
+  margin: 0;
 }
 
 .physics-equation sub,
