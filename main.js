@@ -7,17 +7,36 @@ let stableInnerWidth = window.innerWidth;
 // Last user-initiated scroll position. We snapshot this on every scroll event
 // that is NOT caused by us programmatically restoring scroll, and use it to
 // undo any scroll shifts the browser introduces when the screen size changes
-// (mobile toolbar toggle, devtools open, window resize, etc.).
+// (mobile toolbar toggle, devtools open, etc.). We also track scroll velocity
+// so that rapid user-driven scrolling can fly past a toolbar transition
+// without us snapping it back.
 let preservedScrollY = window.scrollY;
 let restoringScroll = false;
 let lastResizeAt = 0;
+let lastScrollY = window.scrollY;
+let lastScrollAt = performance.now();
+let scrollSpeed = 0; // pixels per millisecond
+
+// Toolbar-sized shifts are usually under ~100px. Anything bigger is the user
+// actually scrolling — leave it alone. Above this speed (px/ms) we treat any
+// resize as happening mid-flick and skip restoration entirely.
+const TOOLBAR_SHIFT_MAX_PX = 140;
+const ACTIVE_SCROLL_SPEED = 0.6;
 
 window.addEventListener("scroll", () => {
+  const now = performance.now();
+  const dt = now - lastScrollAt;
+  if (dt > 0 && dt < 200) {
+    scrollSpeed = (window.scrollY - lastScrollY) / dt;
+  }
+  lastScrollY = window.scrollY;
+  lastScrollAt = now;
+
   // Skip our own restoration writes, plus any scroll events that arrive in
   // the same tick as a resize (those are the ones the browser issues to
   // compensate for the new viewport — exactly what we want to undo).
   if (restoringScroll) return;
-  if (performance.now() - lastResizeAt < 32) return;
+  if (now - lastResizeAt < 32) return;
   preservedScrollY = window.scrollY;
 }, { passive: true });
 
@@ -35,18 +54,24 @@ window.addEventListener("resize", () => {
     return;
   }
 
-  // Minor resize: don't let the browser shift the document under the user.
-  // Restore both immediately (in case the browser already moved scrollY) and
-  // on the next frame (in case it moves it later in this resize tick).
-  const restore = () => {
-    if (Math.abs(window.scrollY - preservedScrollY) > 0.5) {
-      restoringScroll = true;
-      window.scrollTo(0, preservedScrollY);
-      requestAnimationFrame(() => { restoringScroll = false; });
-    }
-  };
-  restore();
-  requestAnimationFrame(restore);
+  // The user is actively flicking the page; don't fight their momentum even
+  // if a toolbar transition lands in the middle of the gesture.
+  if (Math.abs(scrollSpeed) > ACTIVE_SCROLL_SPEED) {
+    preservedScrollY = window.scrollY;
+    return;
+  }
+
+  // Idle (or near-idle) user + minor resize: if the browser has shifted scroll
+  // by a toolbar-sized amount, undo it. Larger deltas mean we lost track of a
+  // real user scroll — accept the new position rather than snapping back.
+  const delta = window.scrollY - preservedScrollY;
+  if (Math.abs(delta) > 0.5 && Math.abs(delta) < TOOLBAR_SHIFT_MAX_PX) {
+    restoringScroll = true;
+    window.scrollTo(0, preservedScrollY);
+    requestAnimationFrame(() => { restoringScroll = false; });
+  } else {
+    preservedScrollY = window.scrollY;
+  }
 });
 
 // ────────────────────────────────────
