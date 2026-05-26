@@ -368,6 +368,7 @@ a:hover {
   border-radius: 15px;
   border: none;
   cursor: pointer;
+  overflow: hidden;
   transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
   flex-shrink: 0;
   margin: 0;
@@ -395,34 +396,50 @@ a:hover {
 .theme-toggle .toggle-icon {
   position: absolute;
   top: 50%;
-  transform: translateY(-50%);
+  left: 4px;
+  width: 22px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  transform: translate(0, -50%) scale(1);
   font-size: 14px;
-  transition: opacity 0.3s ease;
+  transition:
+    transform 0.52s cubic-bezier(0.68, -0.18, 0.27, 1.18),
+    opacity 0.28s ease,
+    filter 0.36s ease;
   line-height: 1;
+  z-index: 1;
 }
 
 .toggle-icon.sun {
-  left: 8px;
   opacity: 1;
+  filter: drop-shadow(0 0 5px rgba(224, 189, 94, 0.36));
 }
 
 .toggle-icon.moon {
-  right: 8px;
-  opacity: 0.5;
+  opacity: 0;
+  transform: translate(38px, -50%) scale(0.72) rotate(-38deg);
+  filter: drop-shadow(0 0 5px rgba(127, 196, 168, 0));
 }
 
 [data-theme="dark"] .toggle-icon.sun {
-  opacity: 0.5;
+  opacity: 0;
+  transform: translate(-16px, -50%) scale(0.72) rotate(38deg);
+  filter: drop-shadow(0 0 5px rgba(224, 189, 94, 0));
 }
 
 [data-theme="dark"] .toggle-icon.moon {
   opacity: 1;
+  transform: translate(26px, -50%) scale(1) rotate(0deg);
+  filter: drop-shadow(0 0 5px rgba(127, 196, 168, 0.34));
 }
 
 /* ══════════════════════════════════════════════
    Main Content Area
    ══════════════════════════════════════════════ */
 .main-content {
+  position: relative;
+  z-index: 2;
   max-width: 1200px;
   margin: 0 auto;
   padding: 120px 40px 80px;
@@ -439,6 +456,11 @@ a:hover {
   padding: 0;
 }
 
+.main-content > :not(#about) {
+  position: relative;
+  z-index: 2;
+}
+
 /* Conway's Game of Life background — pinned to viewport during hero scroll */
 .hero-bg-canvas {
   position: sticky;
@@ -451,6 +473,157 @@ a:hover {
   z-index: 0;
   pointer-events: none;
   opacity: 0.55;
+}
+
+/* WebGPU mountain backdrop and particle overlay — fixed full-viewport. */
+.mountain-bg-canvas,
+.mountain-sky-orb,
+.mountain-particle-canvas {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none;
+}
+
+.mountain-bg-canvas {
+  display: block;
+  z-index: 1;
+  opacity: var(--mountain-bg-opacity, 0);
+  transition: opacity 0.28s ease;
+  will-change: opacity;
+  background:
+    linear-gradient(180deg, rgba(116, 173, 225, 0.38) 0%, rgba(238, 216, 170, 0.18) 48%, rgba(241, 237, 228, 0) 82%);
+}
+
+[data-theme="dark"] .mountain-bg-canvas {
+  background:
+    radial-gradient(circle at 18% 18%, rgba(220, 230, 255, 0.18) 0 88px, transparent 190px),
+    radial-gradient(circle at 16% 24%, rgba(246, 248, 255, 0.92) 0 1.4px, transparent 2.4px),
+    radial-gradient(circle at 28% 12%, rgba(246, 248, 255, 0.78) 0 1px, transparent 2px),
+    radial-gradient(circle at 44% 21%, rgba(246, 248, 255, 0.82) 0 1.2px, transparent 2.2px),
+    radial-gradient(circle at 62% 14%, rgba(246, 248, 255, 0.70) 0 1px, transparent 2px),
+    radial-gradient(circle at 74% 30%, rgba(246, 248, 255, 0.74) 0 1.1px, transparent 2.1px),
+    radial-gradient(circle at 86% 18%, rgba(246, 248, 255, 0.86) 0 1.3px, transparent 2.3px),
+    linear-gradient(180deg, rgba(7, 10, 25, 0.76) 0%, rgba(14, 18, 34, 0.44) 58%, rgba(13, 13, 16, 0) 100%);
+}
+
+.mountain-sky-orb {
+  z-index: 0;
+  overflow: hidden;
+  opacity: var(--mountain-bg-opacity, 0);
+  transition: opacity 0.28s ease;
+  will-change: opacity;
+}
+
+.sky-orb {
+  position: absolute;
+  top: clamp(70px, 15vh, 150px);
+  width: clamp(54px, 8.2vw, 108px);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  isolation: isolate;
+  transition:
+    transform 0.9s cubic-bezier(0.68, -0.18, 0.27, 1.18),
+    opacity 0.52s ease,
+    filter 0.7s ease;
+  will-change: transform, opacity, filter;
+}
+
+.sky-sun {
+  left: 78vw;
+  opacity: 1;
+  transform: translate(-50%, 0) scale(1);
+  background:
+    radial-gradient(circle at 34% 30%, rgba(255, 255, 255, 0.98) 0 8%, rgba(255, 241, 170, 0.96) 9% 32%, rgba(246, 188, 79, 0.94) 33% 63%, rgba(224, 132, 43, 0.90) 64% 100%);
+  box-shadow:
+    inset -10px -14px 20px rgba(170, 82, 28, 0.22),
+    inset 8px 9px 18px rgba(255, 255, 255, 0.30),
+    0 0 38px rgba(246, 188, 79, 0.58),
+    0 0 150px rgba(246, 188, 79, 0.34);
+}
+
+.sky-sun::before,
+.sky-sun::after,
+.sky-moon::before,
+.sky-moon::after {
+  content: "";
+  position: absolute;
+  pointer-events: none;
+}
+
+.sky-sun::before {
+  inset: -48%;
+  z-index: -1;
+  border-radius: inherit;
+  background:
+    repeating-conic-gradient(from 8deg, rgba(246, 188, 79, 0.32) 0deg 7deg, transparent 7deg 18deg),
+    radial-gradient(circle, rgba(255, 223, 129, 0.32) 0 30%, transparent 62%);
+  filter: blur(1px);
+  animation: celestialSpin 18s linear infinite;
+}
+
+.sky-sun::after {
+  inset: 14%;
+  border-radius: inherit;
+  background:
+    radial-gradient(circle at 28% 26%, rgba(255, 255, 255, 0.70) 0 8%, transparent 10%),
+    radial-gradient(circle at 66% 58%, rgba(255, 218, 97, 0.42) 0 10%, transparent 12%),
+    radial-gradient(circle at 42% 72%, rgba(206, 104, 31, 0.18) 0 8%, transparent 11%);
+  mix-blend-mode: screen;
+}
+
+.sky-moon {
+  left: 18vw;
+  opacity: 0;
+  transform: translate(-42vw, 6vh) scale(0.76);
+  background:
+    radial-gradient(circle at 30% 28%, #ffffff 0 12%, transparent 13%),
+    linear-gradient(135deg, #f8f6e8 0%, #dce7f5 48%, #aebcd4 100%);
+  box-shadow:
+    inset -11px -9px 18px rgba(69, 82, 116, 0.24),
+    inset 8px 8px 16px rgba(255, 255, 255, 0.38),
+    0 0 32px rgba(190, 212, 255, 0.42),
+    0 0 120px rgba(127, 196, 168, 0.16);
+}
+
+.sky-moon::before {
+  inset: 0;
+  border-radius: inherit;
+  background:
+    radial-gradient(circle at 34% 36%, rgba(116, 129, 154, 0.24) 0 5%, transparent 6%),
+    radial-gradient(circle at 54% 64%, rgba(116, 129, 154, 0.18) 0 8%, transparent 9%),
+    radial-gradient(circle at 42% 76%, rgba(116, 129, 154, 0.20) 0 4%, transparent 5%),
+    radial-gradient(circle at 62% 32%, rgba(116, 129, 154, 0.16) 0 6%, transparent 7%);
+}
+
+.sky-moon::after {
+  inset: -1px;
+  border-radius: inherit;
+  background:
+    radial-gradient(circle at 70% 36%, rgba(7, 10, 25, 0.99) 0 43%, transparent 44%),
+    linear-gradient(120deg, transparent 0 54%, rgba(255, 255, 255, 0.18) 55%, transparent 63%);
+}
+
+[data-theme="dark"] .sky-sun {
+  opacity: 0;
+  transform: translate(36vw, -5vh) scale(0.72);
+  filter: blur(1px);
+}
+
+[data-theme="dark"] .sky-moon {
+  opacity: 1;
+  transform: translate(-50%, 0) scale(1);
+  filter: blur(0);
+}
+
+@keyframes celestialSpin {
+  to { transform: rotate(1turn); }
+}
+
+.mountain-particle-canvas {
+  display: block;
+  z-index: 50;
 }
 
 /* Sticky inner content stays pinned at center while scrolling through */
@@ -466,7 +639,7 @@ a:hover {
   max-width: 1200px;
   margin: 0 auto;
   will-change: transform;
-  z-index: 1;
+  z-index: 2;
 }
 
 /* ── Cinematic Name Entrance ── */
@@ -717,9 +890,37 @@ footer h2::after,
   text-transform: uppercase;
   letter-spacing: 2px;
   color: var(--accent-2);
-  margin-bottom: 16px;
+  margin-bottom: 8px;
   font-weight: 700;
   align-self: flex-start;
+}
+
+.physics-canvas-wrapper h3 a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.physics-canvas-wrapper h3 a:hover,
+.physics-canvas-wrapper h3 a:focus-visible {
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.physics-equation {
+  align-self: stretch;
+  min-height: 2.7em;
+  margin: 0 0 14px;
+  color: var(--text-muted);
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  font-size: 0.74rem;
+  line-height: 1.35;
+  letter-spacing: 0;
+  overflow-wrap: anywhere;
+}
+
+.physics-equation sub,
+.physics-equation sup {
+  line-height: 0;
 }
 
 .physics-canvas {
@@ -1196,6 +1397,8 @@ footer h2 {
 }
 
 footer {
+  position: relative;
+  z-index: 2;
   padding: 40px 0 24px;
   border-top: 1px solid var(--section-divider);
 }
@@ -1406,4 +1609,3 @@ footer #footer span:hover svg {
     grid-template-columns: 1fr 1fr;
   }
 }
-

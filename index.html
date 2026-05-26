@@ -23,7 +23,7 @@
   <!-- ═══════════ HEADER / NAV ═══════════ -->
   <header class="container">
     <div id="branding">
-      <img src="logo.png" alt="Logo" width="44" height="44" />
+      <img src="assets/logo.png" alt="Logo" width="55" height="55" />
     </div>
     <h1 id="title"><span class="title-short">CV</span><span class="title-full">curriculum vitae (interactivum)</span>
     </h1>
@@ -59,12 +59,16 @@
       </button>
       <button class="hamburger" id="menuToggle" aria-label="Toggle menu" aria-expanded="false">
         <span></span>
-        <span></span>
-        <span></span>
       </button>
     </div>
   </header>
   <div class="nav-overlay" id="navOverlay"></div>
+  <canvas id="mountainBg" class="mountain-bg-canvas" aria-hidden="true"></canvas>
+  <div class="mountain-sky-orb" aria-hidden="true">
+    <span class="sky-orb sky-sun"></span>
+    <span class="sky-orb sky-moon"></span>
+  </div>
+  <canvas id="mountainParticles" class="mountain-particle-canvas" aria-hidden="true"></canvas>
 
   <div class="main-content">
     <!-- ═══════════ HERO ═══════════ -->
@@ -229,7 +233,8 @@
         <!-- 2: Coulomb Charges -->
         <span>
           <div class="physics-canvas-wrapper">
-            <h3>2D Wave Dynamics</h3>
+            <h3><a href="404.html">2D Wave Dynamics</a></h3>
+            <p class="physics-equation">u<sub>tt</sub> = c<sup>2</sup>&nabla;<sup>2</sup>u - &gamma;u<sub>t</sub></p>
             <canvas id="waveSim" class="physics-canvas"></canvas>
           </div>
         </span>
@@ -237,7 +242,11 @@
         <!-- 3: Reaction-Diffusion -->
         <span>
           <div class="physics-canvas-wrapper">
-            <h3>Reaction-Diffusion</h3>
+            <h3><a href="404.html">Reaction-Diffusion</a></h3>
+            <p class="physics-equation">
+              &part;<sub>t</sub>U = D<sub>u</sub>&nabla;<sup>2</sup>U - UV<sup>2</sup> + f(1-U)<br />
+              &part;<sub>t</sub>V = D<sub>v</sub>&nabla;<sup>2</sup>V + UV<sup>2</sup> - (f+k)V
+            </p>
             <canvas id="reactionSim" class="physics-canvas"></canvas>
           </div>
         </span>
@@ -245,7 +254,8 @@
         <!-- 4: Ising Model -->
         <span>
           <div class="physics-canvas-wrapper">
-            <h3>Ising Model</h3>
+            <h3><a href="404.html">Ising Model</a></h3>
+            <p class="physics-equation">H = -J&sum;<sub>&lang;ij&rang;</sub>s<sub>i</sub>s<sub>j</sub>, P = e<sup>-&Delta;E/T</sup></p>
             <canvas id="isingSim" class="physics-canvas"></canvas>
           </div>
         </span>
@@ -253,7 +263,8 @@
         <!-- 5: Lorenz Attractor -->
         <span>
           <div class="physics-canvas-wrapper">
-            <h3>Lorenz Attractor</h3>
+            <h3><a href="404.html">Lorenz Attractor</a></h3>
+            <p class="physics-equation">x' = &sigma;(y-x), y' = x(&rho;-z)-y, z' = xy-&beta;z</p>
             <canvas id="lorenzSim" class="physics-canvas"></canvas>
           </div>
         </span>
@@ -261,7 +272,8 @@
         <!-- 6: Elastic Double Pendulum -->
         <span>
           <div class="physics-canvas-wrapper">
-            <h3>Elastic Double Pendulum</h3>
+            <h3><a href="404.html">Elastic Double Pendulum</a></h3>
+            <!-- <p class="physics-equation">m a = -k(|r|-L)r&#770; + m g (this is incorrect now)</p> -->
             <canvas id="springPendSim" class="physics-canvas"></canvas>
           </div>
         </span>
@@ -269,7 +281,8 @@
         <!-- 7: 1D Traffic Flow Dynamics -->
         <span>
           <div class="physics-canvas-wrapper">
-            <h3>Nonlinear Traffic Flow (1D)</h3>
+            <h3><a href="404.html">Nonlinear Traffic Flow (1D)</a></h3>
+            <p class="physics-equation">dv<sub>i</sub>/dt = &alpha;(V(s<sub>i</sub>) - v<sub>i</sub>), dx<sub>i</sub>/dt = v<sub>i</sub></p>
             <canvas id="trafficSim" class="physics-canvas"></canvas>
           </div>
         </span>
@@ -323,6 +336,37 @@
           </svg>
         </button>
         <div class="project-cards" id="projectTrack">
+          <div class="project-card">
+            <div class="project-card-image">
+              <img src="assets/projects/graphwar-parser.jpg" alt="Graphwar Parser project artwork" loading="lazy" />
+            </div>
+            <h3>Graphwar Parser</h3>
+            <p>
+              A WebAssembly-compatible inspired by Graphwar utilizing Swift
+              structured concurrency and JavaScriptKit for seamless JS interop.
+            </p>
+            <div class="project-card-tags">
+              <span>Swift•JavaScriptKit</span>
+              <span>WebAssembly</span>
+              <span>Interpreter</span>
+            </div>
+          </div>
+          <div class="project-card">
+            <div class="project-card-image">
+              <img src="assets/projects/interactive-physics-ui.jpg" alt="Interactive Physics UI project artwork"
+                loading="lazy" />
+            </div>
+            <h3>Interactive Physics UI</h3>
+            <p>
+              A dynamically rendered portfolio featuring custom fluid, chaos,
+              and flocking simulations built from scratch on the HTML5 Canvas
+              API.
+            </p>
+            <div class="project-card-tags">
+              <span>HTML5•Canvas</span>
+              <span>Physics•Dynamics</span>
+            </div>
+          </div>
           <div class="project-card">
             <div class="project-card-image">
               <img src="assets/projects/iot-irrigation-controller.jpg" alt="IoT Irrigation Controller project artwork"
@@ -391,37 +435,6 @@
               <span>RP2040</span>
             </div>
           </div>
-          <div class="project-card">
-            <div class="project-card-image">
-              <img src="assets/projects/graphwar-parser.jpg" alt="Graphwar Parser project artwork" loading="lazy" />
-            </div>
-            <h3>Graphwar Parser</h3>
-            <p>
-              A WebAssembly-compatible parser for Graphwar utilizing Swift
-              structured concurrency and JavaScriptKit for seamless JS interop.
-            </p>
-            <div class="project-card-tags">
-              <span>Swift•JavaScriptKit</span>
-              <span>WebAssembly</span>
-              <span>Interpreter</span>
-            </div>
-          </div>
-          <div class="project-card">
-            <div class="project-card-image">
-              <img src="assets/projects/interactive-physics-ui.jpg" alt="Interactive Physics UI project artwork"
-                loading="lazy" />
-            </div>
-            <h3>Interactive Physics UI</h3>
-            <p>
-              A dynamically rendered portfolio featuring custom fluid, chaos,
-              and flocking simulations built from scratch on the HTML5 Canvas
-              API.
-            </p>
-            <div class="project-card-tags">
-              <span>HTML5•Canvas</span>
-              <span>Physics•Dynamics</span>
-            </div>
-          </div>
         </div>
         <div class="carousel-dots" id="carouselDots"></div>
         <div class="carousel-counter" id="carouselCounter"></div>
@@ -432,9 +445,9 @@
     <div id="hobbies" class="reveal">
       <h2>Hobbies <span class="latin">(Oblectamenta)</span></h2>
       <ol>
-        <li>🌱 I have made some IoT in agriculture at home.</li>
-        <li>🎧 I usually listen to audiobooks.</li>
-        <li>🇯🇵 I learn Japanese.</li>
+        <li>I have made some IoT in agriculture at home.</li>
+        <li>I usually listen to audiobooks.</li>
+        <li>I learn Japanese.</li>
       </ol>
     </div>
 
@@ -454,15 +467,11 @@
         <li>
           <strong>Place of Birth
             <span class="latin">(Locus Nativitatis)</span>:</strong>
-          Phrae, Thailand
+          Thailand
         </li>
         <li>
           <strong>Nationality <span class="latin">(Civitas)</span>:</strong>
           Thai
-        </li>
-        <li>
-          <strong>Address <span class="latin">(Oratio)</span>:</strong> Mae
-          Lai, Mueang Phrae, Phrae
         </li>
       </ul>
     </div>
