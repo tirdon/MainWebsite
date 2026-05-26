@@ -4,15 +4,49 @@
 let stableInnerHeight = window.innerHeight;
 let stableInnerWidth = window.innerWidth;
 
+// Last user-initiated scroll position. We snapshot this on every scroll event
+// that is NOT caused by us programmatically restoring scroll, and use it to
+// undo any scroll shifts the browser introduces when the screen size changes
+// (mobile toolbar toggle, devtools open, window resize, etc.).
+let preservedScrollY = window.scrollY;
+let restoringScroll = false;
+let lastResizeAt = 0;
+
+window.addEventListener("scroll", () => {
+  // Skip our own restoration writes, plus any scroll events that arrive in
+  // the same tick as a resize (those are the ones the browser issues to
+  // compensate for the new viewport — exactly what we want to undo).
+  if (restoringScroll) return;
+  if (performance.now() - lastResizeAt < 32) return;
+  preservedScrollY = window.scrollY;
+}, { passive: true });
+
 window.addEventListener("resize", () => {
   const w = window.innerWidth;
   const h = window.innerHeight;
+  lastResizeAt = performance.now();
+
   // Update stable dimensions only if it's a true resize (e.g. orientation rotation, split screen, window stretch)
   // Ignores dynamic toolbar collapses and height-only console opens under 350px.
   if (Math.abs(w - stableInnerWidth) > 5 || Math.abs(h - stableInnerHeight) > 350) {
     stableInnerWidth = w;
     stableInnerHeight = h;
+    preservedScrollY = window.scrollY;
+    return;
   }
+
+  // Minor resize: don't let the browser shift the document under the user.
+  // Restore both immediately (in case the browser already moved scrollY) and
+  // on the next frame (in case it moves it later in this resize tick).
+  const restore = () => {
+    if (Math.abs(window.scrollY - preservedScrollY) > 0.5) {
+      restoringScroll = true;
+      window.scrollTo(0, preservedScrollY);
+      requestAnimationFrame(() => { restoringScroll = false; });
+    }
+  };
+  restore();
+  requestAnimationFrame(restore);
 });
 
 // ────────────────────────────────────
