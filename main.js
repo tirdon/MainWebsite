@@ -1,4 +1,21 @@
 // ────────────────────────────────────
+// Stable Viewport Dimensions (ignores dynamic address bars & console toggles)
+// ────────────────────────────────────
+let stableInnerHeight = window.innerHeight;
+let stableInnerWidth = window.innerWidth;
+
+window.addEventListener("resize", () => {
+  const w = window.innerWidth;
+  const h = window.innerHeight;
+  // Update stable dimensions only if it's a true resize (e.g. orientation rotation, split screen, window stretch)
+  // Ignores dynamic toolbar collapses and height-only console opens under 350px.
+  if (Math.abs(w - stableInnerWidth) > 5 || Math.abs(h - stableInnerHeight) > 350) {
+    stableInnerWidth = w;
+    stableInnerHeight = h;
+  }
+});
+
+// ────────────────────────────────────
 // Dark / Light Theme Toggle
 // ────────────────────────────────────
 (() => {
@@ -187,7 +204,7 @@ function runWhenVisible(canvas, frame) {
     ticking = false;
 
     const rect = section.getBoundingClientRect();
-    const totalScrollable = Math.max(1, section.offsetHeight - window.innerHeight);
+    const totalScrollable = Math.max(1, section.offsetHeight - stableInnerHeight);
     const p = clamp01(-rect.top / totalScrollable);
 
     // Name: 0 → 0.3 scroll progress
@@ -1402,7 +1419,7 @@ document.querySelectorAll('a[href^="#"]').forEach((a) => {
     const education = document.getElementById("education");
     const hobbies = document.getElementById("hobbies");
     if (!skills || !education || !hobbies) return { p1: 0, p2: 0 };
-    const ref = window.scrollY + window.innerHeight * 0.5;
+    const ref = window.scrollY + stableInnerHeight * 0.5;
     const skillsTop = skills.getBoundingClientRect().top + window.scrollY;
     const educationTop = education.getBoundingClientRect().top + window.scrollY;
     const hobbiesBot = hobbies.getBoundingClientRect().bottom + window.scrollY;
@@ -1606,13 +1623,8 @@ document.querySelectorAll('a[href^="#"]').forEach((a) => {
     function resizeFallback() {
       const dpr = Math.min(window.devicePixelRatio || 1, 2);
       const w = Math.max(1, Math.floor(window.innerWidth * dpr));
-      const h = Math.max(1, Math.floor(window.innerHeight * dpr));
-      
-      // Skip resizing on mobile dynamic browser chrome scrolls
-      if (fallbackCanvas.width === w && Math.abs(fallbackCanvas.height - h) < 150 * dpr) {
-        return;
-      }
-      
+      const h = Math.max(1, Math.floor(stableInnerHeight * dpr));
+      if (fallbackCanvas.width === w && fallbackCanvas.height === h) return;
       fallbackCanvas.width = w;
       fallbackCanvas.height = h;
     }
@@ -2796,14 +2808,9 @@ fn particle_fs(v: ParticleOut) -> @location(0) vec4<f32> {
     function resize() {
       const dpr = Math.min(window.devicePixelRatio || 1, 2);
       const w = Math.max(1, Math.floor(window.innerWidth * dpr));
-      const h = Math.max(1, Math.floor(window.innerHeight * dpr));
-      
-      // Skip WebGPU resize on mobile dynamic browser chrome scrolls if width remains constant and height change is small
-      if (canvas.width === w && Math.abs(canvas.height - h) < 150 * dpr && depthTex) {
-        const particleSized = !particleCanvas || (particleCanvas.width === w && Math.abs(particleCanvas.height - h) < 150 * dpr);
-        if (particleSized) return;
-      }
-      
+      const h = Math.max(1, Math.floor(stableInnerHeight * dpr));
+      const particleSized = !particleCanvas || (particleCanvas.width === w && particleCanvas.height === h);
+      if (canvas.width === w && canvas.height === h && particleSized && depthTex) return;
       canvas.width = w;
       canvas.height = h;
       if (particleCanvas) {
