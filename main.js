@@ -137,6 +137,68 @@ function runWhenVisible(canvas, frame) {
   io.observe(canvas);
 }
 
+// Same idea as runWhenVisible, but the frame is only requested from a manual
+// `schedule()`. Use for GPU jobs that should re-render on demand (scroll, theme
+// change, resize) instead of every animation frame.
+function onDemandWhenVisible(canvas, frame, { rootMargin = "100px" } = {}) {
+  let visible = false;
+  let pending = false;
+  function tick() {
+    pending = false;
+    if (!visible) return;
+    frame();
+  }
+  function schedule() {
+    if (pending || !visible) return;
+    pending = true;
+    requestAnimationFrame(tick);
+  }
+  const io = new IntersectionObserver((entries) => {
+    const wasVisible = visible;
+    visible = entries[0].isIntersecting;
+    if (visible && !wasVisible) schedule();
+  }, { rootMargin });
+  io.observe(canvas);
+  return { schedule, isVisible: () => visible };
+}
+
+// Single shared WebGPU device. All sims and the mountain backdrop await this
+// instead of each requesting their own adapter/device. Resolves to
+// { device, format } once, or null if WebGPU is unavailable.
+const webgpuShared = (() => {
+  if (!navigator.gpu) return { ready: Promise.resolve(null) };
+  const ready = (async () => {
+    try {
+      const adapter = await navigator.gpu.requestAdapter();
+      if (!adapter) return null;
+      const device = await adapter.requestDevice();
+      const format = navigator.gpu.getPreferredCanvasFormat();
+      // If the device is lost we want every consumer to fall back gracefully.
+      device.lost.then(() => {
+        webgpuShared.lost = true;
+      }).catch(() => {});
+      return { device, format };
+    } catch {
+      return null;
+    }
+  })();
+  return { ready, lost: false };
+})();
+
+// Helper: fullscreen-triangle vertex shader source shared by every sim that
+// renders a 2D grid to a canvas. Emits a single triangle covering NDC.
+const FULLSCREEN_TRIANGLE_VS = `
+@vertex
+fn vs_main(@builtin(vertex_index) idx: u32) -> @builtin(position) vec4<f32> {
+  var pos = array<vec2<f32>, 3>(
+    vec2<f32>(-1.0, -1.0),
+    vec2<f32>( 3.0, -1.0),
+    vec2<f32>(-1.0,  3.0),
+  );
+  return vec4<f32>(pos[idx], 0.0, 1.0);
+}
+`;
+
 // ────────────────────────────────────
 // Navbar Scroll Enhancement
 // ────────────────────────────────────
@@ -366,37 +428,19 @@ document.querySelectorAll('a[href^="#"]').forEach((a) => {
 (() => { // PHYSICS SIM 1: 2D Wave Dynamics
   const canvas = document.getElementById("waveSim");
   if (!canvas) return;
-  const ctx = canvas.getContext("2d");
-  let W, H;
 
   const COLS = 200, ROWS = 130;
   const N = COLS * ROWS;
-  let curr = new Float32Array(N);
-  let prev = new Float32Array(N);
-  const walls = new Uint8Array(N);
   const DAMPING = 0.996;
-  const COURANT = Math.SQRT1_2;
-  const COURANT2 = COURANT * COURANT;
+  const COURANT2 = 0.5; // (1/sqrt(2))^2
 
   const SOURCE_X = 4;
   const FREQ = 0.22;
   const AMP = 60;
 
-  const off = document.createElement("canvas");
-  off.width = COLS;
-  off.height = ROWS;
-  const offCtx = off.getContext("2d");
-  const imageData = offCtx.createImageData(COLS, ROWS);
-  const pixels = new Uint32Array(imageData.data.buffer);
-
-  let time = 0;
-
-  function resize() {
-    ({ W, H } = resizeCanvas(canvas));
-  }
-
-  function setupWalls() {
-    walls.fill(0);
+  // Wall layout matches CPU index convention: walls[i * ROWS + j].
+  const walls = new Uint8Array(N);
+  (function buildWalls() {
     const wallX = Math.floor(COLS * 0.45);
     const slit1 = Math.floor(ROWS * 0.38);
     const slit2 = Math.floor(ROWS * 0.62);
@@ -408,342 +452,1161 @@ document.querySelectorAll('a[href^="#"]').forEach((a) => {
         walls[(wallX + 1) * ROWS + j] = 1;
       }
     }
+  })();
+
+  function palette(dark) {
+    return dark
+      ? { bg: [18, 22, 30], pos: [232, 148, 74], neg: [61, 217, 193], wall: [70, 70, 78] }
+      : { bg: [247, 244, 238], pos: [207, 107, 79], neg: [30, 111, 92], wall: [150, 150, 150] };
   }
 
-  function drop(cx, cy, radius, force) {
-    const r2 = radius * radius;
-    const xmin = Math.max(1, cx - radius), xmax = Math.min(COLS - 1, cx + radius);
-    const ymin = Math.max(1, cy - radius), ymax = Math.min(ROWS - 1, cy + radius);
-    for (let x = xmin; x < xmax; x++) {
-      for (let y = ymin; y < ymax; y++) {
-        const dx = x - cx, dy = y - cy, d2 = dx * dx + dy * dy;
-        if (d2 < r2 && !walls[x * ROWS + y]) {
-          curr[x * ROWS + y] += force * Math.exp(-d2 / (r2 * 0.4));
+  let started = false;
+
+  function startCpu() {
+    if (started) return;
+    started = true;
+    const ctx = canvas.getContext("2d");
+    let W, H;
+    let curr = new Float32Array(N);
+    let prev = new Float32Array(N);
+    const off = document.createElement("canvas");
+    off.width = COLS; off.height = ROWS;
+    const offCtx = off.getContext("2d");
+    const imageData = offCtx.createImageData(COLS, ROWS);
+    const pixels = new Uint32Array(imageData.data.buffer);
+    let time = 0;
+
+    function resize() { ({ W, H } = resizeCanvas(canvas)); }
+    function drop(cx, cy, radius, force) {
+      const r2 = radius * radius;
+      const xmin = Math.max(1, cx - radius), xmax = Math.min(COLS - 1, cx + radius);
+      const ymin = Math.max(1, cy - radius), ymax = Math.min(ROWS - 1, cy + radius);
+      for (let x = xmin; x < xmax; x++) {
+        for (let y = ymin; y < ymax; y++) {
+          const dx = x - cx, dy = y - cy, d2 = dx * dx + dy * dy;
+          if (d2 < r2 && !walls[x * ROWS + y]) {
+            curr[x * ROWS + y] += force * Math.exp(-d2 / (r2 * 0.4));
+          }
         }
       }
     }
-  }
-
-  let isDown = false;
-  canvas.addEventListener("mousedown", (e) => { isDown = true; handleMouse(e); });
-  canvas.addEventListener("mousemove", (e) => { if (isDown) handleMouse(e); });
-  canvas.addEventListener("mouseup", () => (isDown = false));
-  canvas.addEventListener("mouseleave", () => (isDown = false));
-
-  function handleMouse(e) {
-    const rect = canvas.getBoundingClientRect();
-    const mx = ((e.clientX - rect.left) / W) * COLS;
-    const my = ((e.clientY - rect.top) / H) * ROWS;
-    drop(mx | 0, my | 0, 5, -90);
-  }
-
-  function loop() {
-    const dark = isDark();
-    time += 1;
-
-    // Finite-difference wave equation: u_tt = c^2 laplacian(u).
-    // curr holds u_{n-1}, prev holds u_n; write u_{n+1} into curr.
-    for (let i = 1; i < COLS - 1; i++) {
-      const base = i * ROWS;
-      const left = (i - 1) * ROWS;
-      const right = (i + 1) * ROWS;
-      for (let j = 1; j < ROWS - 1; j++) {
-        const k = base + j;
-        if (walls[k]) { curr[k] = 0; continue; }
-        const lap =
-          prev[left + j] +
-          prev[right + j] +
-          prev[base + j - 1] +
-          prev[base + j + 1] -
-          4 * prev[k];
-        curr[k] = (2 * prev[k] - curr[k] + COURANT2 * lap) * DAMPING;
-      }
+    let isDown = false;
+    canvas.addEventListener("mousedown", (e) => { isDown = true; handleMouse(e); });
+    canvas.addEventListener("mousemove", (e) => { if (isDown) handleMouse(e); });
+    canvas.addEventListener("mouseup", () => (isDown = false));
+    canvas.addEventListener("mouseleave", () => (isDown = false));
+    function handleMouse(e) {
+      const rect = canvas.getBoundingClientRect();
+      const mx = ((e.clientX - rect.left) / W) * COLS;
+      const my = ((e.clientY - rect.top) / H) * ROWS;
+      drop(mx | 0, my | 0, 5, -90);
     }
 
-    // Coherent plane-wave source (ramped in)
-    const ramp = Math.min(1, time / 120);
-    const s = Math.sin(time * FREQ) * AMP * ramp;
-    for (let j = 2; j < ROWS - 2; j++) {
-      curr[SOURCE_X * ROWS + j] = s;
-    }
-
-    // Palette
-    let bgR, bgG, bgB, pR, pG, pB, nR, nG, nB, wR, wG, wB;
-    if (dark) {
-      bgR = 18; bgG = 22; bgB = 30;
-      pR = 232; pG = 148; pB = 74;    // orange crest
-      nR = 61; nG = 217; nB = 193;   // teal trough
-      wR = 70; wG = 70; wB = 78;
-    } else {
-      bgR = 247; bgG = 244; bgB = 238;
-      pR = 207; pG = 107; pB = 79;
-      nR = 30; nG = 111; nB = 92;
-      wR = 150; wG = 150; wB = 150;
-    }
-    const wallColor = 0xff000000 | (wB << 16) | (wG << 8) | wR;
-
-    // Render with sqrt magnitude mapping for dynamic range
-    for (let j = 0; j < ROWS; j++) {
-      for (let i = 0; i < COLS; i++) {
-        const k = i * ROWS + j;
-        const p = j * COLS + i;
-        if (walls[k]) { pixels[p] = wallColor; continue; }
-        const v = curr[k];
-        const mag = Math.min(1, Math.sqrt(Math.abs(v) / 80));
-        let r, g, b;
-        if (v >= 0) {
-          r = bgR + (pR - bgR) * mag;
-          g = bgG + (pG - bgG) * mag;
-          b = bgB + (pB - bgB) * mag;
-        } else {
-          r = bgR + (nR - bgR) * mag;
-          g = bgG + (nG - bgG) * mag;
-          b = bgB + (nB - bgB) * mag;
+    function loop() {
+      const dark = isDark();
+      time += 1;
+      for (let i = 1; i < COLS - 1; i++) {
+        const base = i * ROWS;
+        const left = (i - 1) * ROWS;
+        const right = (i + 1) * ROWS;
+        for (let j = 1; j < ROWS - 1; j++) {
+          const k = base + j;
+          if (walls[k]) { curr[k] = 0; continue; }
+          const lap = prev[left + j] + prev[right + j] + prev[base + j - 1] + prev[base + j + 1] - 4 * prev[k];
+          curr[k] = (2 * prev[k] - curr[k] + COURANT2 * lap) * DAMPING;
         }
-        pixels[p] = 0xff000000 | ((b & 0xff) << 16) | ((g & 0xff) << 8) | (r & 0xff);
       }
+      const ramp = Math.min(1, time / 120);
+      const s = Math.sin(time * FREQ) * AMP * ramp;
+      for (let j = 2; j < ROWS - 2; j++) curr[SOURCE_X * ROWS + j] = s;
+      const p = palette(dark);
+      const [bgR, bgG, bgB] = p.bg;
+      const [pR, pG, pB] = p.pos;
+      const [nR, nG, nB] = p.neg;
+      const [wR, wG, wB] = p.wall;
+      const wallColor = 0xff000000 | (wB << 16) | (wG << 8) | wR;
+      for (let j = 0; j < ROWS; j++) {
+        for (let i = 0; i < COLS; i++) {
+          const k = i * ROWS + j;
+          const pIdx = j * COLS + i;
+          if (walls[k]) { pixels[pIdx] = wallColor; continue; }
+          const v = curr[k];
+          const mag = Math.min(1, Math.sqrt(Math.abs(v) / 80));
+          let r, g, b;
+          if (v >= 0) { r = bgR + (pR - bgR) * mag; g = bgG + (pG - bgG) * mag; b = bgB + (pB - bgB) * mag; }
+          else { r = bgR + (nR - bgR) * mag; g = bgG + (nG - bgG) * mag; b = bgB + (nB - bgB) * mag; }
+          pixels[pIdx] = 0xff000000 | ((b & 0xff) << 16) | ((g & 0xff) << 8) | (r & 0xff);
+        }
+      }
+      offCtx.putImageData(imageData, 0, 0);
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = "high";
+      ctx.drawImage(off, 0, 0, W, H);
+      const temp = prev; prev = curr; curr = temp;
     }
-    offCtx.putImageData(imageData, 0, 0);
-
-    ctx.imageSmoothingEnabled = true;
-    ctx.imageSmoothingQuality = "high";
-    ctx.drawImage(off, 0, 0, W, H);
-
-    const temp = prev; prev = curr; curr = temp;
+    resize();
+    window.addEventListener("resize", resize);
+    runWhenVisible(canvas, loop);
   }
 
-  resize();
-  setupWalls();
-  window.addEventListener("resize", resize);
-  runWhenVisible(canvas, loop);
+  function startGpu(device, format) {
+    if (started) return;
+
+    // Build everything before touching the canvas context, so a failure here
+    // still leaves the canvas free for the 2D fallback.
+    const stateA = device.createBuffer({ size: N * 4, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST });
+    const stateB = device.createBuffer({ size: N * 4, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST });
+    const wallsBuf = device.createBuffer({ size: N * 4, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST });
+    const wallsU32 = new Uint32Array(N);
+    for (let k = 0; k < N; k++) wallsU32[k] = walls[k];
+    device.queue.writeBuffer(wallsBuf, 0, wallsU32);
+
+    const MAX_DROPS = 32;
+    const dropsBuf = device.createBuffer({ size: MAX_DROPS * 16, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST });
+    const dropsCpu = new Float32Array(MAX_DROPS * 4);
+
+    // StepParams: 10 scalars padded to 12 for 16-byte tail alignment.
+    const stepBuf = device.createBuffer({ size: 48, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST });
+    const stepArray = new ArrayBuffer(48);
+    const stepF32 = new Float32Array(stepArray);
+    const stepU32 = new Uint32Array(stepArray);
+
+    // RenderParams: 4 scalars (16B) + 4 × vec4 (64B) = 80B.
+    const renderBuf = device.createBuffer({ size: 80, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST });
+    const renderArray = new ArrayBuffer(80);
+    const renderF32 = new Float32Array(renderArray);
+    const renderU32 = new Uint32Array(renderArray);
+    renderU32[0] = COLS;
+    renderU32[1] = ROWS;
+
+    const stepWgsl = `
+struct StepParams {
+  cols: u32, rows: u32, sourceX: u32, dropCount: u32,
+  time: f32, freq: f32, amp: f32, ramp: f32,
+  damping: f32, courant2: f32, _p0: f32, _p1: f32,
+};
+struct Drop { x: f32, y: f32, radius: f32, force: f32 };
+@group(0) @binding(0) var<storage, read> srcState: array<f32>;
+@group(0) @binding(1) var<storage, read_write> dstState: array<f32>;
+@group(0) @binding(2) var<storage, read> walls: array<u32>;
+@group(0) @binding(3) var<uniform> sp: StepParams;
+@group(0) @binding(4) var<storage, read> drops: array<Drop>;
+
+@compute @workgroup_size(8, 8)
+fn cs_step(@builtin(global_invocation_id) gid: vec3<u32>) {
+  let i = gid.x;
+  let j = gid.y;
+  if (i >= sp.cols || j >= sp.rows) { return; }
+  let k = i * sp.rows + j;
+  if (i == 0u || j == 0u || i + 1u >= sp.cols || j + 1u >= sp.rows) {
+    dstState[k] = 0.0;
+    return;
+  }
+  if (walls[k] != 0u) {
+    dstState[k] = 0.0;
+    return;
+  }
+  var currOld = dstState[k];
+  for (var d: u32 = 0u; d < sp.dropCount; d = d + 1u) {
+    let dp = drops[d];
+    let dx = f32(i) - dp.x;
+    let dy = f32(j) - dp.y;
+    let d2 = dx * dx + dy * dy;
+    let r2 = dp.radius * dp.radius;
+    if (d2 < r2) {
+      currOld = currOld + dp.force * exp(-d2 / (r2 * 0.4));
+    }
+  }
+  let prevK = srcState[k];
+  let lap = srcState[(i - 1u) * sp.rows + j]
+          + srcState[(i + 1u) * sp.rows + j]
+          + srcState[i * sp.rows + (j - 1u)]
+          + srcState[i * sp.rows + (j + 1u)]
+          - 4.0 * prevK;
+  var newVal = (2.0 * prevK - currOld + sp.courant2 * lap) * sp.damping;
+  if (i == sp.sourceX && j >= 2u && j + 2u < sp.rows) {
+    newVal = sin(sp.time * sp.freq) * sp.amp * sp.ramp;
+  }
+  dstState[k] = newVal;
+}
+`;
+    const renderWgsl = `
+struct RenderParams {
+  cols: u32, rows: u32, fbW: f32, fbH: f32,
+  bg: vec4<f32>, pos: vec4<f32>, neg: vec4<f32>, wall: vec4<f32>,
+};
+@group(0) @binding(0) var<storage, read> state: array<f32>;
+@group(0) @binding(1) var<storage, read> walls: array<u32>;
+@group(0) @binding(2) var<uniform> rp: RenderParams;
+
+${FULLSCREEN_TRIANGLE_VS}
+
+@fragment
+fn fs_main(@builtin(position) fragPos: vec4<f32>) -> @location(0) vec4<f32> {
+  let u = clamp(fragPos.x / rp.fbW, 0.0, 1.0);
+  let v = clamp(fragPos.y / rp.fbH, 0.0, 1.0);
+  let gxf = u * f32(rp.cols) - 0.5;
+  let gyf = v * f32(rp.rows) - 0.5;
+  let gx = clamp(gxf, 0.0, f32(rp.cols - 1u));
+  let gy = clamp(gyf, 0.0, f32(rp.rows - 1u));
+  let i0 = u32(floor(gx));
+  let j0 = u32(floor(gy));
+  let i1 = min(i0 + 1u, rp.cols - 1u);
+  let j1 = min(j0 + 1u, rp.rows - 1u);
+  let fx = gx - floor(gx);
+  let fy = gy - floor(gy);
+  let v00 = state[i0 * rp.rows + j0];
+  let v10 = state[i1 * rp.rows + j0];
+  let v01 = state[i0 * rp.rows + j1];
+  let v11 = state[i1 * rp.rows + j1];
+  let val = mix(mix(v00, v10, fx), mix(v01, v11, fx), fy);
+  let ii = u32(round(gx));
+  let jj = u32(round(gy));
+  if (walls[ii * rp.rows + jj] != 0u) {
+    return vec4<f32>(rp.wall.rgb, 1.0);
+  }
+  let mag = min(1.0, sqrt(abs(val) / 80.0));
+  var color: vec3<f32>;
+  if (val >= 0.0) {
+    color = mix(rp.bg.rgb, rp.pos.rgb, mag);
+  } else {
+    color = mix(rp.bg.rgb, rp.neg.rgb, mag);
+  }
+  return vec4<f32>(color, 1.0);
+}
+`;
+    const stepModule = device.createShaderModule({ code: stepWgsl });
+    const renderModule = device.createShaderModule({ code: renderWgsl });
+
+    const stepBgl = device.createBindGroupLayout({
+      entries: [
+        { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: "read-only-storage" } },
+        { binding: 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: "storage" } },
+        { binding: 2, visibility: GPUShaderStage.COMPUTE, buffer: { type: "read-only-storage" } },
+        { binding: 3, visibility: GPUShaderStage.COMPUTE, buffer: { type: "uniform" } },
+        { binding: 4, visibility: GPUShaderStage.COMPUTE, buffer: { type: "read-only-storage" } },
+      ],
+    });
+    const renderBgl = device.createBindGroupLayout({
+      entries: [
+        { binding: 0, visibility: GPUShaderStage.FRAGMENT, buffer: { type: "read-only-storage" } },
+        { binding: 1, visibility: GPUShaderStage.FRAGMENT, buffer: { type: "read-only-storage" } },
+        { binding: 2, visibility: GPUShaderStage.FRAGMENT, buffer: { type: "uniform" } },
+      ],
+    });
+    const stepPipeline = device.createComputePipeline({
+      layout: device.createPipelineLayout({ bindGroupLayouts: [stepBgl] }),
+      compute: { module: stepModule, entryPoint: "cs_step" },
+    });
+    const renderPipeline = device.createRenderPipeline({
+      layout: device.createPipelineLayout({ bindGroupLayouts: [renderBgl] }),
+      vertex: { module: renderModule, entryPoint: "vs_main" },
+      fragment: { module: renderModule, entryPoint: "fs_main", targets: [{ format }] },
+      primitive: { topology: "triangle-list" },
+    });
+
+    const stepBgAB = device.createBindGroup({
+      layout: stepBgl,
+      entries: [
+        { binding: 0, resource: { buffer: stateA } },
+        { binding: 1, resource: { buffer: stateB } },
+        { binding: 2, resource: { buffer: wallsBuf } },
+        { binding: 3, resource: { buffer: stepBuf } },
+        { binding: 4, resource: { buffer: dropsBuf } },
+      ],
+    });
+    const stepBgBA = device.createBindGroup({
+      layout: stepBgl,
+      entries: [
+        { binding: 0, resource: { buffer: stateB } },
+        { binding: 1, resource: { buffer: stateA } },
+        { binding: 2, resource: { buffer: wallsBuf } },
+        { binding: 3, resource: { buffer: stepBuf } },
+        { binding: 4, resource: { buffer: dropsBuf } },
+      ],
+    });
+    const renderBgA = device.createBindGroup({
+      layout: renderBgl,
+      entries: [
+        { binding: 0, resource: { buffer: stateA } },
+        { binding: 1, resource: { buffer: wallsBuf } },
+        { binding: 2, resource: { buffer: renderBuf } },
+      ],
+    });
+    const renderBgB = device.createBindGroup({
+      layout: renderBgl,
+      entries: [
+        { binding: 0, resource: { buffer: stateB } },
+        { binding: 1, resource: { buffer: wallsBuf } },
+        { binding: 2, resource: { buffer: renderBuf } },
+      ],
+    });
+
+    // Commit the canvas to webgpu only after every other resource succeeded.
+    const ctx = canvas.getContext("webgpu");
+    if (!ctx) throw new Error("waveSim: getContext('webgpu') returned null");
+    ctx.configure({ device, format, alphaMode: "premultiplied" });
+    started = true;
+
+    let cssW = 0, cssH = 0;
+    function resize() {
+      const rect = canvas.getBoundingClientRect();
+      const dpr = window.devicePixelRatio || 1;
+      const W = rect.width, H = rect.height;
+      const targetW = Math.max(1, Math.round(W * dpr));
+      const targetH = Math.max(1, Math.round(H * dpr));
+      if (canvas.width !== targetW || Math.abs(canvas.height - targetH) >= 150 * dpr || canvas.width === 0) {
+        canvas.width = targetW;
+        canvas.height = targetH;
+      }
+      cssW = W; cssH = H;
+    }
+    resize();
+    window.addEventListener("resize", resize);
+
+    // Drop queue (mouse drag).
+    const pendingDrops = [];
+    function queueDrop(cx, cy) {
+      if (pendingDrops.length >= MAX_DROPS) pendingDrops.shift();
+      pendingDrops.push({ x: cx, y: cy, radius: 5, force: -90 });
+    }
+    let isDown = false;
+    canvas.addEventListener("mousedown", (e) => { isDown = true; handleMouse(e); });
+    canvas.addEventListener("mousemove", (e) => { if (isDown) handleMouse(e); });
+    canvas.addEventListener("mouseup", () => (isDown = false));
+    canvas.addEventListener("mouseleave", () => (isDown = false));
+    function handleMouse(e) {
+      const rect = canvas.getBoundingClientRect();
+      const mx = ((e.clientX - rect.left) / Math.max(1, cssW)) * COLS;
+      const my = ((e.clientY - rect.top) / Math.max(1, cssH)) * ROWS;
+      queueDrop(mx | 0, my | 0);
+    }
+
+    let time = 0;
+    let parity = 0; // 0 → src=A, dst=B. 1 → src=B, dst=A.
+    const dispatchX = Math.ceil(COLS / 8);
+    const dispatchY = Math.ceil(ROWS / 8);
+
+    function loop() {
+      time += 1;
+      const dropCount = pendingDrops.length;
+      if (dropCount > 0) {
+        for (let i = 0; i < dropCount; i++) {
+          const d = pendingDrops[i];
+          dropsCpu[i * 4]     = d.x;
+          dropsCpu[i * 4 + 1] = d.y;
+          dropsCpu[i * 4 + 2] = d.radius;
+          dropsCpu[i * 4 + 3] = d.force;
+        }
+        device.queue.writeBuffer(dropsBuf, 0, dropsCpu, 0, dropCount * 4);
+        pendingDrops.length = 0;
+      }
+      stepU32[0] = COLS;
+      stepU32[1] = ROWS;
+      stepU32[2] = SOURCE_X;
+      stepU32[3] = dropCount;
+      stepF32[4] = time;
+      stepF32[5] = FREQ;
+      stepF32[6] = AMP;
+      stepF32[7] = Math.min(1, time / 120);
+      stepF32[8] = DAMPING;
+      stepF32[9] = COURANT2;
+      device.queue.writeBuffer(stepBuf, 0, stepArray);
+
+      const dark = isDark();
+      const p = palette(dark);
+      renderU32[0] = COLS;
+      renderU32[1] = ROWS;
+      renderF32[2] = canvas.width;
+      renderF32[3] = canvas.height;
+      // bg, pos, neg, wall at offsets 4, 8, 12, 16 (f32 indices)
+      renderF32[4] = p.bg[0] / 255;   renderF32[5] = p.bg[1] / 255;   renderF32[6] = p.bg[2] / 255;   renderF32[7] = 1;
+      renderF32[8] = p.pos[0] / 255;  renderF32[9] = p.pos[1] / 255;  renderF32[10] = p.pos[2] / 255; renderF32[11] = 1;
+      renderF32[12] = p.neg[0] / 255; renderF32[13] = p.neg[1] / 255; renderF32[14] = p.neg[2] / 255; renderF32[15] = 1;
+      renderF32[16] = p.wall[0] / 255; renderF32[17] = p.wall[1] / 255; renderF32[18] = p.wall[2] / 255; renderF32[19] = 1;
+      device.queue.writeBuffer(renderBuf, 0, renderArray);
+
+      const stepBg = parity === 0 ? stepBgAB : stepBgBA;
+      const renderBg = parity === 0 ? renderBgB : renderBgA;
+
+      const encoder = device.createCommandEncoder();
+      const cpass = encoder.beginComputePass();
+      cpass.setPipeline(stepPipeline);
+      cpass.setBindGroup(0, stepBg);
+      cpass.dispatchWorkgroups(dispatchX, dispatchY);
+      cpass.end();
+      const view = ctx.getCurrentTexture().createView();
+      const rpass = encoder.beginRenderPass({
+        colorAttachments: [{ view, loadOp: "clear", storeOp: "store", clearValue: { r: 0, g: 0, b: 0, a: 0 } }],
+      });
+      rpass.setPipeline(renderPipeline);
+      rpass.setBindGroup(0, renderBg);
+      rpass.draw(3);
+      rpass.end();
+      device.queue.submit([encoder.finish()]);
+
+      parity ^= 1;
+    }
+
+    runWhenVisible(canvas, loop);
+  }
+
+  webgpuShared.ready.then((gpu) => {
+    if (!gpu || webgpuShared.lost) { startCpu(); return; }
+    try { startGpu(gpu.device, gpu.format); }
+    catch (err) {
+      console.warn("waveSim: WebGPU init failed, falling back to 2D", err);
+      if (!started) startCpu();
+    }
+  });
 })();
 
 // ════════════════════════════════════
 (() => { // PHYSICS SIM 2: Reaction-Diffusion (Gray-Scott)
   const canvas = document.getElementById("reactionSim");
   if (!canvas) return;
-  const ctx = canvas.getContext("2d");
-  let W, H;
 
   const GW = 120, GH = 80;
-  let U, V, nU, nV;
   const Du = 0.16, Dv = 0.08;
-  const f = 0.040, k = 0.060;
+  const F = 0.040, K = 0.060;
   const RD_DT = 1.0;
+  const SUBSTEPS = 6;
+  const SEED_RADIUS = 3;
+  const INITIAL_SEEDS = [
+    [Math.floor(GW / 2), Math.floor(GH / 2)],
+    [Math.floor(GW / 4), Math.floor(GH / 3)],
+    [Math.floor((3 * GW) / 4), Math.floor((2 * GH) / 3)],
+  ];
 
-  const off = document.createElement("canvas");
-  off.width = GW;
-  off.height = GH;
-  const offCtx = off.getContext("2d");
-
-  function resize() {
-    ({ W, H } = resizeCanvas(canvas));
+  function palette(dark) {
+    return dark
+      ? { bg: [0, 20, 30], fg: [61, 217, 193] }
+      : { bg: [245, 239, 230], fg: [70, 25, 15] };
   }
 
-  function alloc() {
-    U = []; V = []; nU = []; nV = [];
-    for (let i = 0; i < GW; i++) {
-      U[i] = new Float32Array(GH);
-      V[i] = new Float32Array(GH);
-      nU[i] = new Float32Array(GH);
-      nV[i] = new Float32Array(GH);
-      for (let j = 0; j < GH; j++) U[i][j] = 1.0;
-    }
-  }
+  let started = false;
 
-  function seed(cx, cy) {
-    for (let di = -3; di <= 3; di++) {
-      for (let dj = -3; dj <= 3; dj++) {
-        const gi = ((cx + di + GW) % GW) | 0;
-        const gj = ((cy + dj + GH) % GH) | 0;
-        U[gi][gj] = 0.5;
-        V[gi][gj] = 0.25 + Math.random() * 0.01;
+  function startCpu() {
+    if (started) return;
+    started = true;
+    const ctx = canvas.getContext("2d");
+    let W, H;
+    let U, V, nU, nV;
+    const off = document.createElement("canvas");
+    off.width = GW; off.height = GH;
+    const offCtx = off.getContext("2d");
+
+    function resize() { ({ W, H } = resizeCanvas(canvas)); }
+    function alloc() {
+      U = []; V = []; nU = []; nV = [];
+      for (let i = 0; i < GW; i++) {
+        U[i] = new Float32Array(GH);
+        V[i] = new Float32Array(GH);
+        nU[i] = new Float32Array(GH);
+        nV[i] = new Float32Array(GH);
+        for (let j = 0; j < GH; j++) U[i][j] = 1.0;
       }
     }
-  }
-
-  function init() {
+    function seed(cx, cy) {
+      for (let di = -SEED_RADIUS; di <= SEED_RADIUS; di++) {
+        for (let dj = -SEED_RADIUS; dj <= SEED_RADIUS; dj++) {
+          const gi = ((cx + di + GW) % GW) | 0;
+          const gj = ((cy + dj + GH) % GH) | 0;
+          U[gi][gj] = 0.5;
+          V[gi][gj] = 0.25 + Math.random() * 0.01;
+        }
+      }
+    }
     resize();
     alloc();
-    seed(GW / 2, GH / 2);
-    seed(GW / 4, GH / 3);
-    seed((3 * GW) / 4, (2 * GH) / 3);
-  }
+    for (const [sx, sy] of INITIAL_SEEDS) seed(sx, sy);
 
-  let isDraggingRD = false;
-  canvas.addEventListener("mousedown", (e) => {
-    isDraggingRD = true;
-    handleRDInteract(e);
-  });
-  canvas.addEventListener("mousemove", (e) => {
-    if (isDraggingRD) handleRDInteract(e);
-  });
-  canvas.addEventListener("mouseup", () => isDraggingRD = false);
-  canvas.addEventListener("mouseleave", () => isDraggingRD = false);
-
-  function handleRDInteract(e) {
-    const rect = canvas.getBoundingClientRect();
-    const mx = e.clientX - rect.left;
-    const my = e.clientY - rect.top;
-    seed(((mx / W) * GW) | 0, ((my / H) * GH) | 0);
-  }
-
-  function loop() {
-    const dark = isDark();
-
-    for (let step = 0; step < 6; step++) {
-      for (let i = 0; i < GW; i++) {
-        const ip = (i + 1) % GW, im = (i - 1 + GW) % GW;
-        for (let j = 0; j < GH; j++) {
-          const jp = (j + 1) % GH, jm = (j - 1 + GH) % GH;
-          const lapU = U[ip][j] + U[im][j] + U[i][jp] + U[i][jm] - 4 * U[i][j];
-          const lapV = V[ip][j] + V[im][j] + V[i][jp] + V[i][jm] - 4 * V[i][j];
-          const uvv = U[i][j] * V[i][j] * V[i][j];
-          nU[i][j] = U[i][j] + RD_DT * (Du * lapU - uvv + f * (1 - U[i][j]));
-          nV[i][j] = V[i][j] + RD_DT * (Dv * lapV + uvv - (f + k) * V[i][j]);
-        }
-      }
-      let t;
-      t = U; U = nU; nU = t;
-      t = V; V = nV; nV = t;
+    let isDragging = false;
+    canvas.addEventListener("mousedown", (e) => { isDragging = true; handle(e); });
+    canvas.addEventListener("mousemove", (e) => { if (isDragging) handle(e); });
+    canvas.addEventListener("mouseup", () => (isDragging = false));
+    canvas.addEventListener("mouseleave", () => (isDragging = false));
+    function handle(e) {
+      const rect = canvas.getBoundingClientRect();
+      seed((((e.clientX - rect.left) / W) * GW) | 0, (((e.clientY - rect.top) / H) * GH) | 0);
     }
 
-    const imageData = offCtx.createImageData(GW, GH);
-    const data = imageData.data;
-    for (let j = 0; j < GH; j++) {
-      for (let i = 0; i < GW; i++) {
-        const v = V[i][j];
-        const idx = (j * GW + i) * 4;
-        if (dark) {
-          data[idx] = (v * 61) | 0;
-          data[idx + 1] = (v * 217 + (1 - v) * 20) | 0;
-          data[idx + 2] = (v * 193 + (1 - v) * 30) | 0;
-        } else {
-          data[idx] = (v * 70 + (1 - v) * 245) | 0;
-          data[idx + 1] = (v * 25 + (1 - v) * 239) | 0;
-          data[idx + 2] = (v * 15 + (1 - v) * 230) | 0;
+    function loop() {
+      const dark = isDark();
+      for (let step = 0; step < SUBSTEPS; step++) {
+        for (let i = 0; i < GW; i++) {
+          const ip = (i + 1) % GW, im = (i - 1 + GW) % GW;
+          for (let j = 0; j < GH; j++) {
+            const jp = (j + 1) % GH, jm = (j - 1 + GH) % GH;
+            const lapU = U[ip][j] + U[im][j] + U[i][jp] + U[i][jm] - 4 * U[i][j];
+            const lapV = V[ip][j] + V[im][j] + V[i][jp] + V[i][jm] - 4 * V[i][j];
+            const uvv = U[i][j] * V[i][j] * V[i][j];
+            nU[i][j] = U[i][j] + RD_DT * (Du * lapU - uvv + F * (1 - U[i][j]));
+            nV[i][j] = V[i][j] + RD_DT * (Dv * lapV + uvv - (F + K) * V[i][j]);
+          }
         }
-        data[idx + 3] = 255;
+        let t;
+        t = U; U = nU; nU = t;
+        t = V; V = nV; nV = t;
       }
+      const imageData = offCtx.createImageData(GW, GH);
+      const data = imageData.data;
+      for (let j = 0; j < GH; j++) {
+        for (let i = 0; i < GW; i++) {
+          const v = V[i][j];
+          const idx = (j * GW + i) * 4;
+          if (dark) {
+            data[idx] = (v * 61) | 0;
+            data[idx + 1] = (v * 217 + (1 - v) * 20) | 0;
+            data[idx + 2] = (v * 193 + (1 - v) * 30) | 0;
+          } else {
+            data[idx] = (v * 70 + (1 - v) * 245) | 0;
+            data[idx + 1] = (v * 25 + (1 - v) * 239) | 0;
+            data[idx + 2] = (v * 15 + (1 - v) * 230) | 0;
+          }
+          data[idx + 3] = 255;
+        }
+      }
+      offCtx.putImageData(imageData, 0, 0);
+      ctx.imageSmoothingEnabled = false;
+      ctx.drawImage(off, 0, 0, W, H);
     }
-    offCtx.putImageData(imageData, 0, 0);
-    ctx.imageSmoothingEnabled = false;
-    ctx.drawImage(off, 0, 0, W, H);
+
+    window.addEventListener("resize", resize);
+    runWhenVisible(canvas, loop);
   }
 
-  init();
-  window.addEventListener("resize", resize);
-  runWhenVisible(canvas, loop);
+  function startGpu(device, format) {
+    if (started) return;
+    const N = GW * GH;
+    const STATE_BYTES = N * 8; // vec2<f32> per cell
+
+    const stateA = device.createBuffer({ size: STATE_BYTES, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST });
+    const stateB = device.createBuffer({ size: STATE_BYTES, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST });
+    // Initial: U=1.0, V=0.0 everywhere. We write to A; B starts at zero but is
+    // overwritten in the first substep.
+    const initState = new Float32Array(N * 2);
+    for (let k = 0; k < N; k++) initState[k * 2] = 1.0;
+    device.queue.writeBuffer(stateA, 0, initState);
+
+    const stepParamsBuf = device.createBuffer({ size: 48, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST });
+    {
+      const ab = new ArrayBuffer(48);
+      const f32 = new Float32Array(ab);
+      const u32 = new Uint32Array(ab);
+      u32[0] = GW; u32[1] = GH;
+      f32[4] = Du; f32[5] = Dv; f32[6] = F; f32[7] = K;
+      f32[8] = RD_DT;
+      device.queue.writeBuffer(stepParamsBuf, 0, ab);
+    }
+
+    const MAX_SEEDS = 16;
+    const seedsBuf = device.createBuffer({ size: MAX_SEEDS * 8, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST });
+    const seedsCpu = new Uint32Array(MAX_SEEDS * 2);
+    const seedParamsBuf = device.createBuffer({ size: 16, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST });
+    const seedParamsArr = new Uint32Array(4);
+    seedParamsArr[0] = GW; seedParamsArr[1] = GH;
+
+    const renderBuf = device.createBuffer({ size: 48, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST });
+    const renderArray = new ArrayBuffer(48);
+    const renderF32 = new Float32Array(renderArray);
+    const renderU32 = new Uint32Array(renderArray);
+    renderU32[0] = GW; renderU32[1] = GH;
+
+    const stepWgsl = `
+struct P {
+  gw: u32, gh: u32, _p0: u32, _p1: u32,
+  Du: f32, Dv: f32, F: f32, K: f32,
+  dt: f32, _p2: f32, _p3: f32, _p4: f32,
+};
+@group(0) @binding(0) var<storage, read> src: array<vec2<f32>>;
+@group(0) @binding(1) var<storage, read_write> dst: array<vec2<f32>>;
+@group(0) @binding(2) var<uniform> p: P;
+
+@compute @workgroup_size(8, 8)
+fn cs_step(@builtin(global_invocation_id) gid: vec3<u32>) {
+  let i = gid.x;
+  let j = gid.y;
+  if (i >= p.gw || j >= p.gh) { return; }
+  let k = i * p.gh + j;
+  let ip = (i + 1u) % p.gw;
+  let im = (i + p.gw - 1u) % p.gw;
+  let jp = (j + 1u) % p.gh;
+  let jm = (j + p.gh - 1u) % p.gh;
+  let c   = src[k];
+  let cp  = src[ip * p.gh + j];
+  let cm  = src[im * p.gh + j];
+  let cjp = src[i * p.gh + jp];
+  let cjm = src[i * p.gh + jm];
+  let lap = cp + cm + cjp + cjm - 4.0 * c;
+  let uvv = c.x * c.y * c.y;
+  let newU = c.x + p.dt * (p.Du * lap.x - uvv + p.F * (1.0 - c.x));
+  let newV = c.y + p.dt * (p.Dv * lap.y + uvv - (p.F + p.K) * c.y);
+  dst[k] = vec2<f32>(newU, newV);
+}
+`;
+    const seedWgsl = `
+struct Seed { x: u32, y: u32 };
+struct SP { gw: u32, gh: u32, seedCount: u32, _p: u32 };
+@group(0) @binding(0) var<storage, read_write> state: array<vec2<f32>>;
+@group(0) @binding(1) var<uniform> sp: SP;
+@group(0) @binding(2) var<storage, read> seeds: array<Seed>;
+
+fn hash21(q: vec2<f32>) -> f32 {
+  let h = dot(q, vec2<f32>(127.1, 311.7));
+  return fract(sin(h) * 43758.5453);
+}
+
+@compute @workgroup_size(7, 7, 1)
+fn cs_seed(@builtin(global_invocation_id) gid: vec3<u32>) {
+  let s = gid.z;
+  if (s >= sp.seedCount) { return; }
+  let seed = seeds[s];
+  let di = i32(gid.x) - 3;
+  let dj = i32(gid.y) - 3;
+  let i = u32((i32(seed.x) + di + i32(sp.gw)) % i32(sp.gw));
+  let j = u32((i32(seed.y) + dj + i32(sp.gh)) % i32(sp.gh));
+  let k = i * sp.gh + j;
+  let r = hash21(vec2<f32>(f32(i), f32(j))) * 0.01;
+  state[k] = vec2<f32>(0.5, 0.25 + r);
+}
+`;
+    const renderWgsl = `
+struct RP {
+  gw: u32, gh: u32, fbW: f32, fbH: f32,
+  bg: vec4<f32>, fg: vec4<f32>,
+};
+@group(0) @binding(0) var<storage, read> state: array<vec2<f32>>;
+@group(0) @binding(1) var<uniform> rp: RP;
+
+${FULLSCREEN_TRIANGLE_VS}
+
+@fragment
+fn fs_main(@builtin(position) fragPos: vec4<f32>) -> @location(0) vec4<f32> {
+  let u = clamp(fragPos.x / rp.fbW, 0.0, 1.0);
+  let v = clamp(fragPos.y / rp.fbH, 0.0, 1.0);
+  let i = min(u32(u * f32(rp.gw)), rp.gw - 1u);
+  let j = min(u32(v * f32(rp.gh)), rp.gh - 1u);
+  let vv = clamp(state[i * rp.gh + j].y, 0.0, 1.0);
+  let color = mix(rp.bg.rgb, rp.fg.rgb, vv);
+  return vec4<f32>(color, 1.0);
+}
+`;
+    const stepModule = device.createShaderModule({ code: stepWgsl });
+    const seedModule = device.createShaderModule({ code: seedWgsl });
+    const renderModule = device.createShaderModule({ code: renderWgsl });
+
+    const stepBgl = device.createBindGroupLayout({
+      entries: [
+        { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: "read-only-storage" } },
+        { binding: 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: "storage" } },
+        { binding: 2, visibility: GPUShaderStage.COMPUTE, buffer: { type: "uniform" } },
+      ],
+    });
+    const seedBgl = device.createBindGroupLayout({
+      entries: [
+        { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: "storage" } },
+        { binding: 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: "uniform" } },
+        { binding: 2, visibility: GPUShaderStage.COMPUTE, buffer: { type: "read-only-storage" } },
+      ],
+    });
+    const renderBgl = device.createBindGroupLayout({
+      entries: [
+        { binding: 0, visibility: GPUShaderStage.FRAGMENT, buffer: { type: "read-only-storage" } },
+        { binding: 1, visibility: GPUShaderStage.FRAGMENT, buffer: { type: "uniform" } },
+      ],
+    });
+    const stepPipeline = device.createComputePipeline({
+      layout: device.createPipelineLayout({ bindGroupLayouts: [stepBgl] }),
+      compute: { module: stepModule, entryPoint: "cs_step" },
+    });
+    const seedPipeline = device.createComputePipeline({
+      layout: device.createPipelineLayout({ bindGroupLayouts: [seedBgl] }),
+      compute: { module: seedModule, entryPoint: "cs_seed" },
+    });
+    const renderPipeline = device.createRenderPipeline({
+      layout: device.createPipelineLayout({ bindGroupLayouts: [renderBgl] }),
+      vertex: { module: renderModule, entryPoint: "vs_main" },
+      fragment: { module: renderModule, entryPoint: "fs_main", targets: [{ format }] },
+      primitive: { topology: "triangle-list" },
+    });
+
+    const stepBgAB = device.createBindGroup({
+      layout: stepBgl,
+      entries: [
+        { binding: 0, resource: { buffer: stateA } },
+        { binding: 1, resource: { buffer: stateB } },
+        { binding: 2, resource: { buffer: stepParamsBuf } },
+      ],
+    });
+    const stepBgBA = device.createBindGroup({
+      layout: stepBgl,
+      entries: [
+        { binding: 0, resource: { buffer: stateB } },
+        { binding: 1, resource: { buffer: stateA } },
+        { binding: 2, resource: { buffer: stepParamsBuf } },
+      ],
+    });
+    // Seeds always target stateA (the "latest" buffer at frame start).
+    const seedBg = device.createBindGroup({
+      layout: seedBgl,
+      entries: [
+        { binding: 0, resource: { buffer: stateA } },
+        { binding: 1, resource: { buffer: seedParamsBuf } },
+        { binding: 2, resource: { buffer: seedsBuf } },
+      ],
+    });
+    const renderBgA = device.createBindGroup({
+      layout: renderBgl,
+      entries: [
+        { binding: 0, resource: { buffer: stateA } },
+        { binding: 1, resource: { buffer: renderBuf } },
+      ],
+    });
+
+    // Commit canvas only after every fallible setup step succeeded.
+    const ctx = canvas.getContext("webgpu");
+    if (!ctx) throw new Error("reactionSim: getContext('webgpu') returned null");
+    ctx.configure({ device, format, alphaMode: "premultiplied" });
+    started = true;
+
+    let cssW = 0, cssH = 0;
+    function resize() {
+      const rect = canvas.getBoundingClientRect();
+      const dpr = window.devicePixelRatio || 1;
+      const W = rect.width, H = rect.height;
+      const tW = Math.max(1, Math.round(W * dpr));
+      const tH = Math.max(1, Math.round(H * dpr));
+      if (canvas.width !== tW || Math.abs(canvas.height - tH) >= 150 * dpr || canvas.width === 0) {
+        canvas.width = tW;
+        canvas.height = tH;
+      }
+      cssW = W; cssH = H;
+    }
+    resize();
+    window.addEventListener("resize", resize);
+
+    // Queue the initial seeds; the first frame will run cs_seed on stateA.
+    const pendingSeeds = INITIAL_SEEDS.map(([x, y]) => ({ x, y }));
+    function queueSeed(cx, cy) {
+      if (pendingSeeds.length >= MAX_SEEDS) pendingSeeds.shift();
+      pendingSeeds.push({ x: cx | 0, y: cy | 0 });
+    }
+    let isDragging = false;
+    canvas.addEventListener("mousedown", (e) => { isDragging = true; handle(e); });
+    canvas.addEventListener("mousemove", (e) => { if (isDragging) handle(e); });
+    canvas.addEventListener("mouseup", () => (isDragging = false));
+    canvas.addEventListener("mouseleave", () => (isDragging = false));
+    function handle(e) {
+      const rect = canvas.getBoundingClientRect();
+      queueSeed(((e.clientX - rect.left) / Math.max(1, cssW)) * GW, ((e.clientY - rect.top) / Math.max(1, cssH)) * GH);
+    }
+
+    const dispatchX = Math.ceil(GW / 8);
+    const dispatchY = Math.ceil(GH / 8);
+
+    function loop() {
+      const seedCount = Math.min(MAX_SEEDS, pendingSeeds.length);
+      if (seedCount > 0) {
+        for (let i = 0; i < seedCount; i++) {
+          seedsCpu[i * 2]     = pendingSeeds[i].x;
+          seedsCpu[i * 2 + 1] = pendingSeeds[i].y;
+        }
+        device.queue.writeBuffer(seedsBuf, 0, seedsCpu, 0, seedCount * 2);
+        pendingSeeds.length = 0;
+      }
+      seedParamsArr[2] = seedCount;
+      device.queue.writeBuffer(seedParamsBuf, 0, seedParamsArr);
+
+      const dark = isDark();
+      const p = palette(dark);
+      renderU32[0] = GW;
+      renderU32[1] = GH;
+      renderF32[2] = canvas.width;
+      renderF32[3] = canvas.height;
+      renderF32[4] = p.bg[0] / 255; renderF32[5] = p.bg[1] / 255; renderF32[6] = p.bg[2] / 255; renderF32[7] = 1;
+      renderF32[8] = p.fg[0] / 255; renderF32[9] = p.fg[1] / 255; renderF32[10] = p.fg[2] / 255; renderF32[11] = 1;
+      device.queue.writeBuffer(renderBuf, 0, renderArray);
+
+      const encoder = device.createCommandEncoder();
+      if (seedCount > 0) {
+        const cpass = encoder.beginComputePass();
+        cpass.setPipeline(seedPipeline);
+        cpass.setBindGroup(0, seedBg);
+        cpass.dispatchWorkgroups(1, 1, seedCount);
+        cpass.end();
+      }
+      const cpass = encoder.beginComputePass();
+      cpass.setPipeline(stepPipeline);
+      // 6 substeps end on stateA (even count) so render always reads A.
+      for (let s = 0; s < SUBSTEPS; s++) {
+        cpass.setBindGroup(0, s % 2 === 0 ? stepBgAB : stepBgBA);
+        cpass.dispatchWorkgroups(dispatchX, dispatchY);
+      }
+      cpass.end();
+      const view = ctx.getCurrentTexture().createView();
+      const rpass = encoder.beginRenderPass({
+        colorAttachments: [{ view, loadOp: "clear", storeOp: "store", clearValue: { r: 0, g: 0, b: 0, a: 0 } }],
+      });
+      rpass.setPipeline(renderPipeline);
+      rpass.setBindGroup(0, renderBgA);
+      rpass.draw(3);
+      rpass.end();
+      device.queue.submit([encoder.finish()]);
+    }
+
+    runWhenVisible(canvas, loop);
+  }
+
+  webgpuShared.ready.then((gpu) => {
+    if (!gpu || webgpuShared.lost) { startCpu(); return; }
+    try { startGpu(gpu.device, gpu.format); }
+    catch (err) {
+      console.warn("reactionSim: WebGPU init failed, falling back to 2D", err);
+      if (!started) startCpu();
+    }
+  });
 })();
 
 // ════════════════════════════════════
 (() => { // PHYSICS SIM 3: Ising Model (2D Spin Lattice)
   const canvas = document.getElementById("isingSim");
   if (!canvas) return;
-  const ctx = canvas.getContext("2d");
-  let W, H;
 
   const GRID = 64;
-  const spins = [];
-  const J = 1;
-  const kB = 1;
-  let T = 2.27; // near critical temperature Tc ≈ 2.269
-  let tempMode = 1; // 0=cold, 1=critical, 2=hot
+  const J_COUPLING = 1;
+  const TEMPS = [0.5, 2.27, 5.0]; // cold, critical (Tc ≈ 2.269), hot
+  const HOT_T = 5.0;
+  const HEAT_RADIUS2 = 1600; // 40 CSS px
 
-  const off = document.createElement("canvas");
-  off.width = GRID;
-  off.height = GRID;
-  const offCtx = off.getContext("2d");
-
-  function resize() {
-    ({ W, H } = resizeCanvas(canvas));
+  function palette(dark) {
+    return dark
+      ? { up: [232, 148, 74], down: [26, 26, 46] }
+      : { up: [207, 107, 79], down: [245, 239, 230] };
   }
 
-  function init() {
-    resize();
-    spins.length = 0;
-    for (let i = 0; i < GRID; i++) {
-      spins[i] = new Int8Array(GRID);
-      for (let j = 0; j < GRID; j++) {
-        spins[i][j] = Math.random() < 0.5 ? 1 : -1;
-      }
-    }
-  }
+  let started = false;
 
-  // Click cycles temperature: cold → critical → hot
-  canvas.addEventListener("click", () => {
-    tempMode = (tempMode + 1) % 3;
-    T = [0.5, 2.27, 5.0][tempMode];
-  });
+  function startCpu() {
+    if (started) return;
+    started = true;
+    const ctx = canvas.getContext("2d");
+    let W, H;
+    const spins = [];
+    let tempMode = 1;
+    let T = TEMPS[tempMode];
+    let mouseX = null, mouseY = null;
+    const off = document.createElement("canvas");
+    off.width = GRID; off.height = GRID;
+    const offCtx = off.getContext("2d");
 
-  let mouseX = null, mouseY = null;
-  canvas.addEventListener("mousemove", (e) => {
-    const rect = canvas.getBoundingClientRect();
-    mouseX = e.clientX - rect.left;
-    mouseY = e.clientY - rect.top;
-  });
-  canvas.addEventListener("mouseleave", () => {
-    mouseX = null;
-    mouseY = null;
-  });
-
-  function loop() {
-    const dark = isDark();
-    const cellW = W / GRID;
-    const cellH = H / GRID;
-
-    // Metropolis-Hastings: one full sweep per frame
-    const steps = GRID * GRID;
-    for (let s = 0; s < steps; s++) {
-      const i = (Math.random() * GRID) | 0;
-      const j = (Math.random() * GRID) | 0;
-
-      // Mouse proximity heats spins locally
-      let localT = T;
-      if (mouseX !== null) {
-        const dx = (i + 0.5) * cellW - mouseX;
-        const dy = (j + 0.5) * cellH - mouseY;
-        if (dx * dx + dy * dy < 1600) localT = Math.max(localT, 5.0);
-      }
-
-      const spin = spins[i][j];
-      const neighbors =
-        spins[(i + 1) % GRID][j] +
-        spins[(i - 1 + GRID) % GRID][j] +
-        spins[i][(j + 1) % GRID] +
-        spins[i][(j - 1 + GRID) % GRID];
-      const dE = 2 * J * spin * neighbors;
-
-      if (dE <= 0 || Math.random() < Math.exp(-dE / (kB * localT))) {
-        spins[i][j] = -spin;
-      }
-    }
-
-    // Render to offscreen canvas at grid resolution, then scale up
-    const imageData = offCtx.createImageData(GRID, GRID);
-    const data = imageData.data;
-    const upR = dark ? 232 : 207, upG = dark ? 148 : 107, upB = dark ? 74 : 79;
-    const dnR = dark ? 26 : 245, dnG = dark ? 26 : 239, dnB = dark ? 46 : 230;
-
-    for (let j = 0; j < GRID; j++) {
+    function resize() { ({ W, H } = resizeCanvas(canvas)); }
+    function init() {
+      resize();
+      spins.length = 0;
       for (let i = 0; i < GRID; i++) {
-        const idx = (j * GRID + i) * 4;
-        if (spins[i][j] === 1) {
-          data[idx] = upR; data[idx + 1] = upG; data[idx + 2] = upB;
-        } else {
-          data[idx] = dnR; data[idx + 1] = dnG; data[idx + 2] = dnB;
-        }
-        data[idx + 3] = 255;
+        spins[i] = new Int8Array(GRID);
+        for (let j = 0; j < GRID; j++) spins[i][j] = Math.random() < 0.5 ? 1 : -1;
       }
     }
-    offCtx.putImageData(imageData, 0, 0);
-    ctx.imageSmoothingEnabled = false;
-    ctx.drawImage(off, 0, 0, W, H);
+    init();
+
+    canvas.addEventListener("click", () => {
+      tempMode = (tempMode + 1) % 3;
+      T = TEMPS[tempMode];
+    });
+    canvas.addEventListener("mousemove", (e) => {
+      const rect = canvas.getBoundingClientRect();
+      mouseX = e.clientX - rect.left;
+      mouseY = e.clientY - rect.top;
+    });
+    canvas.addEventListener("mouseleave", () => { mouseX = null; mouseY = null; });
+
+    function loop() {
+      const dark = isDark();
+      const cellW = W / GRID;
+      const cellH = H / GRID;
+      const steps = GRID * GRID;
+      for (let s = 0; s < steps; s++) {
+        const i = (Math.random() * GRID) | 0;
+        const j = (Math.random() * GRID) | 0;
+        let localT = T;
+        if (mouseX !== null) {
+          const dx = (i + 0.5) * cellW - mouseX;
+          const dy = (j + 0.5) * cellH - mouseY;
+          if (dx * dx + dy * dy < HEAT_RADIUS2) localT = Math.max(localT, HOT_T);
+        }
+        const spin = spins[i][j];
+        const nb = spins[(i + 1) % GRID][j] + spins[(i - 1 + GRID) % GRID][j] +
+                   spins[i][(j + 1) % GRID] + spins[i][(j - 1 + GRID) % GRID];
+        const dE = 2 * J_COUPLING * spin * nb;
+        if (dE <= 0 || Math.random() < Math.exp(-dE / localT)) spins[i][j] = -spin;
+      }
+      const imageData = offCtx.createImageData(GRID, GRID);
+      const data = imageData.data;
+      const p = palette(dark);
+      const [upR, upG, upB] = p.up;
+      const [dnR, dnG, dnB] = p.down;
+      for (let j = 0; j < GRID; j++) {
+        for (let i = 0; i < GRID; i++) {
+          const idx = (j * GRID + i) * 4;
+          if (spins[i][j] === 1) { data[idx] = upR; data[idx + 1] = upG; data[idx + 2] = upB; }
+          else { data[idx] = dnR; data[idx + 1] = dnG; data[idx + 2] = dnB; }
+          data[idx + 3] = 255;
+        }
+      }
+      offCtx.putImageData(imageData, 0, 0);
+      ctx.imageSmoothingEnabled = false;
+      ctx.drawImage(off, 0, 0, W, H);
+    }
+
+    window.addEventListener("resize", resize);
+    runWhenVisible(canvas, loop);
   }
 
-  init();
-  window.addEventListener("resize", resize);
-  runWhenVisible(canvas, loop);
+  function startGpu(device, format) {
+    if (started) return;
+    const N = GRID * GRID;
+
+    const spinsBuf = device.createBuffer({ size: N * 4, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST });
+    const initSpins = new Int32Array(N);
+    for (let k = 0; k < N; k++) initSpins[k] = Math.random() < 0.5 ? 1 : -1;
+    device.queue.writeBuffer(spinsBuf, 0, initSpins);
+
+    // Two parity uniforms so both passes carry their own parity/seed when
+    // submitted in a single command buffer.
+    const PARAMS_SIZE = 64;
+    const paramsBlackBuf = device.createBuffer({ size: PARAMS_SIZE, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST });
+    const paramsWhiteBuf = device.createBuffer({ size: PARAMS_SIZE, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST });
+    const paramsArr = new ArrayBuffer(PARAMS_SIZE);
+    const pU32 = new Uint32Array(paramsArr);
+    const pF32 = new Float32Array(paramsArr);
+
+    const renderBuf = device.createBuffer({ size: 48, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST });
+    const renderArray = new ArrayBuffer(48);
+    const renderF32 = new Float32Array(renderArray);
+    const renderU32 = new Uint32Array(renderArray);
+    renderU32[0] = GRID;
+
+    const stepWgsl = `
+struct IsingParams {
+  grid: u32, parity: u32, _p0: u32, _p1: u32,
+  T: f32, J: f32, heatR2: f32, hotT: f32,
+  mouseX: f32, mouseY: f32, cellW: f32, cellH: f32,
+  seed: f32, _p2: f32, _p3: f32, _p4: f32,
+};
+@group(0) @binding(0) var<storage, read_write> spins: array<i32>;
+@group(0) @binding(1) var<uniform> p: IsingParams;
+
+fn rand(seed: vec3<f32>) -> f32 {
+  return fract(sin(dot(seed, vec3<f32>(127.1, 311.7, 74.7))) * 43758.5453);
+}
+
+@compute @workgroup_size(8, 8)
+fn cs_step(@builtin(global_invocation_id) gid: vec3<u32>) {
+  let i = gid.x;
+  let j = gid.y;
+  if (i >= p.grid || j >= p.grid) { return; }
+  if (((i + j) & 1u) != p.parity) { return; }
+  var localT = p.T;
+  if (p.heatR2 > 0.0) {
+    let cx = (f32(i) + 0.5) * p.cellW;
+    let cy = (f32(j) + 0.5) * p.cellH;
+    let dx = cx - p.mouseX;
+    let dy = cy - p.mouseY;
+    if (dx * dx + dy * dy < p.heatR2) {
+      localT = max(localT, p.hotT);
+    }
+  }
+  let k = i * p.grid + j;
+  let spin = spins[k];
+  let nb = spins[((i + 1u) % p.grid) * p.grid + j]
+         + spins[((i + p.grid - 1u) % p.grid) * p.grid + j]
+         + spins[i * p.grid + ((j + 1u) % p.grid)]
+         + spins[i * p.grid + ((j + p.grid - 1u) % p.grid)];
+  let dE = 2.0 * p.J * f32(spin) * f32(nb);
+  let r = rand(vec3<f32>(f32(i) + 0.5, f32(j) + 0.5, p.seed));
+  if (dE <= 0.0 || r < exp(-dE / max(localT, 0.0001))) {
+    spins[k] = -spin;
+  }
+}
+`;
+    const renderWgsl = `
+struct RP {
+  grid: u32, _p0: u32, fbW: f32, fbH: f32,
+  up: vec4<f32>, down: vec4<f32>,
+};
+@group(0) @binding(0) var<storage, read> spins: array<i32>;
+@group(0) @binding(1) var<uniform> rp: RP;
+
+${FULLSCREEN_TRIANGLE_VS}
+
+@fragment
+fn fs_main(@builtin(position) fragPos: vec4<f32>) -> @location(0) vec4<f32> {
+  let u = clamp(fragPos.x / rp.fbW, 0.0, 1.0);
+  let v = clamp(fragPos.y / rp.fbH, 0.0, 1.0);
+  let i = min(u32(u * f32(rp.grid)), rp.grid - 1u);
+  let j = min(u32(v * f32(rp.grid)), rp.grid - 1u);
+  let s = spins[i * rp.grid + j];
+  if (s == 1) {
+    return vec4<f32>(rp.up.rgb, 1.0);
+  }
+  return vec4<f32>(rp.down.rgb, 1.0);
+}
+`;
+    const stepModule = device.createShaderModule({ code: stepWgsl });
+    const renderModule = device.createShaderModule({ code: renderWgsl });
+
+    const stepBgl = device.createBindGroupLayout({
+      entries: [
+        { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: "storage" } },
+        { binding: 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: "uniform" } },
+      ],
+    });
+    const renderBgl = device.createBindGroupLayout({
+      entries: [
+        { binding: 0, visibility: GPUShaderStage.FRAGMENT, buffer: { type: "read-only-storage" } },
+        { binding: 1, visibility: GPUShaderStage.FRAGMENT, buffer: { type: "uniform" } },
+      ],
+    });
+    const stepPipeline = device.createComputePipeline({
+      layout: device.createPipelineLayout({ bindGroupLayouts: [stepBgl] }),
+      compute: { module: stepModule, entryPoint: "cs_step" },
+    });
+    const renderPipeline = device.createRenderPipeline({
+      layout: device.createPipelineLayout({ bindGroupLayouts: [renderBgl] }),
+      vertex: { module: renderModule, entryPoint: "vs_main" },
+      fragment: { module: renderModule, entryPoint: "fs_main", targets: [{ format }] },
+      primitive: { topology: "triangle-list" },
+    });
+
+    const stepBgBlack = device.createBindGroup({
+      layout: stepBgl,
+      entries: [
+        { binding: 0, resource: { buffer: spinsBuf } },
+        { binding: 1, resource: { buffer: paramsBlackBuf } },
+      ],
+    });
+    const stepBgWhite = device.createBindGroup({
+      layout: stepBgl,
+      entries: [
+        { binding: 0, resource: { buffer: spinsBuf } },
+        { binding: 1, resource: { buffer: paramsWhiteBuf } },
+      ],
+    });
+    const renderBg = device.createBindGroup({
+      layout: renderBgl,
+      entries: [
+        { binding: 0, resource: { buffer: spinsBuf } },
+        { binding: 1, resource: { buffer: renderBuf } },
+      ],
+    });
+
+    const ctx = canvas.getContext("webgpu");
+    if (!ctx) throw new Error("isingSim: getContext('webgpu') returned null");
+    ctx.configure({ device, format, alphaMode: "premultiplied" });
+    started = true;
+
+    let cssW = 0, cssH = 0;
+    function resize() {
+      const rect = canvas.getBoundingClientRect();
+      const dpr = window.devicePixelRatio || 1;
+      const W = rect.width, H = rect.height;
+      const tW = Math.max(1, Math.round(W * dpr));
+      const tH = Math.max(1, Math.round(H * dpr));
+      if (canvas.width !== tW || Math.abs(canvas.height - tH) >= 150 * dpr || canvas.width === 0) {
+        canvas.width = tW;
+        canvas.height = tH;
+      }
+      cssW = W; cssH = H;
+    }
+    resize();
+    window.addEventListener("resize", resize);
+
+    let tempMode = 1;
+    let T = TEMPS[tempMode];
+    let mouseActive = false;
+    let mouseX = 0, mouseY = 0;
+    canvas.addEventListener("click", () => {
+      tempMode = (tempMode + 1) % 3;
+      T = TEMPS[tempMode];
+    });
+    canvas.addEventListener("mousemove", (e) => {
+      const rect = canvas.getBoundingClientRect();
+      mouseX = e.clientX - rect.left;
+      mouseY = e.clientY - rect.top;
+      mouseActive = true;
+    });
+    canvas.addEventListener("mouseleave", () => { mouseActive = false; });
+
+    const dispatchN = Math.ceil(GRID / 8);
+
+    function writeParamsBuffer(parity, seed) {
+      pU32[0] = GRID;
+      pU32[1] = parity;
+      pF32[4] = T;
+      pF32[5] = J_COUPLING;
+      pF32[6] = mouseActive ? HEAT_RADIUS2 : 0;
+      pF32[7] = HOT_T;
+      pF32[8] = mouseX;
+      pF32[9] = mouseY;
+      pF32[10] = cssW / GRID;
+      pF32[11] = cssH / GRID;
+      pF32[12] = seed;
+      return paramsArr;
+    }
+
+    function loop() {
+      // Write the two parity buffers BEFORE encoding so both pass dispatches
+      // pick up the correct uniform when the command buffer is submitted.
+      const seedBlack = Math.random() * 1000;
+      const seedWhite = Math.random() * 1000;
+      writeParamsBuffer(0, seedBlack);
+      device.queue.writeBuffer(paramsBlackBuf, 0, paramsArr);
+      writeParamsBuffer(1, seedWhite);
+      device.queue.writeBuffer(paramsWhiteBuf, 0, paramsArr);
+
+      const dark = isDark();
+      const p = palette(dark);
+      renderU32[0] = GRID;
+      renderF32[2] = canvas.width;
+      renderF32[3] = canvas.height;
+      renderF32[4] = p.up[0] / 255;   renderF32[5] = p.up[1] / 255;   renderF32[6] = p.up[2] / 255;   renderF32[7] = 1;
+      renderF32[8] = p.down[0] / 255; renderF32[9] = p.down[1] / 255; renderF32[10] = p.down[2] / 255; renderF32[11] = 1;
+      device.queue.writeBuffer(renderBuf, 0, renderArray);
+
+      const encoder = device.createCommandEncoder();
+      {
+        const cpass = encoder.beginComputePass();
+        cpass.setPipeline(stepPipeline);
+        cpass.setBindGroup(0, stepBgBlack);
+        cpass.dispatchWorkgroups(dispatchN, dispatchN);
+        cpass.setBindGroup(0, stepBgWhite);
+        cpass.dispatchWorkgroups(dispatchN, dispatchN);
+        cpass.end();
+      }
+      const view = ctx.getCurrentTexture().createView();
+      const rpass = encoder.beginRenderPass({
+        colorAttachments: [{ view, loadOp: "clear", storeOp: "store", clearValue: { r: 0, g: 0, b: 0, a: 0 } }],
+      });
+      rpass.setPipeline(renderPipeline);
+      rpass.setBindGroup(0, renderBg);
+      rpass.draw(3);
+      rpass.end();
+      device.queue.submit([encoder.finish()]);
+    }
+
+    runWhenVisible(canvas, loop);
+  }
+
+  webgpuShared.ready.then((gpu) => {
+    if (!gpu || webgpuShared.lost) { startCpu(); return; }
+    try { startGpu(gpu.device, gpu.format); }
+    catch (err) {
+      console.warn("isingSim: WebGPU init failed, falling back to 2D", err);
+      if (!started) startCpu();
+    }
+  });
 })();
 
 // ════════════════════════════════════
@@ -1461,12 +2324,14 @@ document.querySelectorAll('a[href^="#"]').forEach((a) => {
   const canvas = document.getElementById("mountainBg");
   const particleCanvas = document.getElementById("mountainParticles");
   if (!canvas) return;
-  const hasWebGPU = !!navigator.gpu;
 
   const clamp01 = (v) => Math.max(0, Math.min(1, v));
   const setMountainOpacity = (v) => {
     document.documentElement.style.setProperty("--mountain-bg-opacity", v.toFixed(3));
   };
+  // Below this fade level the mountain is effectively invisible — skip all
+  // GPU work while the user is reading sections outside the backdrop's range.
+  const FADE_THRESHOLD = 0.005;
 
   // Map document scroll into two phases:
   //   p1: 0 at top-of-#skills → 1 at top-of-#education (fade-in + zoom-out)
@@ -1644,13 +2509,13 @@ document.querySelectorAll('a[href^="#"]').forEach((a) => {
         const height = size * (0.24 - i * 0.012);
         const grad = ctx.createLinearGradient(x - width, tierY, x + width, tierY);
         if (dark) {
-          grad.addColorStop(0, "#142f25");
-          grad.addColorStop(0.52, "#2d5f3a");
-          grad.addColorStop(1, "#0d221c");
+          grad.addColorStop(0, "#1c3b2e");
+          grad.addColorStop(0.52, "#3a7448");
+          grad.addColorStop(1, "#152e26");
         } else {
-          grad.addColorStop(0, "#254b2f");
-          grad.addColorStop(0.52, "#4f8b3d");
-          grad.addColorStop(1, "#1f3f2a");
+          grad.addColorStop(0, "#2e5638");
+          grad.addColorStop(0.52, "#5b9847");
+          grad.addColorStop(1, "#274932");
         }
         ctx.beginPath();
         ctx.moveTo(x, tierY - height);
@@ -1986,27 +2851,33 @@ document.querySelectorAll('a[href^="#"]').forEach((a) => {
       );
     }
 
+    // Conifer "skirt" silhouette: wide droopy bottom whorls, dense layering,
+    // sharply tapered top. Slightly more branches per tier than before so
+    // gaps between whorls aren't visible.
     const tiers = [
-      { y: 0.20, r: 0.50, d: 0.235, w: 0.060, n: 11 },
-      { y: 0.36, r: 0.44, d: 0.205, w: 0.054, n: 10 },
-      { y: 0.52, r: 0.38, d: 0.172, w: 0.047, n: 10 },
-      { y: 0.68, r: 0.31, d: 0.142, w: 0.040, n: 9 },
-      { y: 0.83, r: 0.25, d: 0.116, w: 0.034, n: 8 },
-      { y: 0.98, r: 0.19, d: 0.092, w: 0.028, n: 7 },
-      { y: 1.12, r: 0.14, d: 0.068, w: 0.022, n: 6 },
-      { y: 1.25, r: 0.09, d: 0.048, w: 0.016, n: 5 },
+      { y: 0.16, r: 0.62, d: 0.34, w: 0.062, n: 14 },
+      { y: 0.30, r: 0.54, d: 0.29, w: 0.056, n: 13 },
+      { y: 0.44, r: 0.46, d: 0.24, w: 0.049, n: 12 },
+      { y: 0.58, r: 0.38, d: 0.19, w: 0.043, n: 11 },
+      { y: 0.72, r: 0.30, d: 0.15, w: 0.037, n: 10 },
+      { y: 0.86, r: 0.23, d: 0.11, w: 0.031, n: 9 },
+      { y: 1.00, r: 0.16, d: 0.08, w: 0.025, n: 8 },
+      { y: 1.14, r: 0.10, d: 0.055, w: 0.019, n: 6 },
+      { y: 1.26, r: 0.05, d: 0.035, w: 0.013, n: 5 },
     ];
     for (let i = 0; i < tiers.length; i++) {
       const t = tiers[i];
       mb.pineWhorl(t.y + j(), t.r, t.d, t.w, t.n, phase + i * 0.63, 1);
     }
 
-    mb.cylinder([0, 0.17 + j(), 0], [0, 0.58 + j(), 0], 0.30, 0.070, 10, 1);
-    mb.cylinder([0, 0.38 + j(), 0], [0, 0.82 + j(), 0], 0.25, 0.056, 10, 1);
-    mb.cylinder([0, 0.62 + j(), 0], [0, 1.06 + j(), 0], 0.19, 0.041, 9, 1);
-    mb.cylinder([0, 0.86 + j(), 0], [0, 1.28 + j(), 0], 0.13, 0.026, 8, 1);
-    mb.cylinder([0, 1.10 + j(), 0], [0, 1.50 + j(), 0], 0.070, 0.0, 7, 1);
-    mb.cylinder([0, 1.27, 0], [0, 1.56, 0], 0.016, 0.0, 6, 0);
+    mb.cylinder([0, 0.15 + j(), 0], [0, 0.56 + j(), 0], 0.32, 0.072, 10, 1);
+    mb.cylinder([0, 0.36 + j(), 0], [0, 0.80 + j(), 0], 0.27, 0.058, 10, 1);
+    mb.cylinder([0, 0.58 + j(), 0], [0, 1.04 + j(), 0], 0.20, 0.042, 9, 1);
+    mb.cylinder([0, 0.82 + j(), 0], [0, 1.26 + j(), 0], 0.14, 0.026, 8, 1);
+    mb.cylinder([0, 1.06 + j(), 0], [0, 1.46 + j(), 0], 0.075, 0.0, 7, 1);
+    // Sharp evergreen leader / steeple at the top.
+    mb.cylinder([0, 1.24, 0], [0, 1.62, 0], 0.025, 0.0, 6, 1);
+    mb.cylinder([0, 1.27, 0], [0, 1.56, 0], 0.014, 0.0, 6, 0);
     return new Float32Array(mb.verts);
   }
 
@@ -2150,28 +3021,19 @@ document.querySelectorAll('a[href^="#"]').forEach((a) => {
     return new Float32Array(out);
   }
 
-  if (!hasWebGPU) {
-    startMountainFallback2d();
-    return;
-  }
-
   (async () => {
-    let adapter, device;
-    try {
-      adapter = await navigator.gpu.requestAdapter();
-      if (!adapter) throw new Error("no adapter");
-      device = await adapter.requestDevice();
-    } catch {
+    const shared = await webgpuShared.ready;
+    if (!shared || webgpuShared.lost) {
       startMountainFallback2d();
       return;
     }
+    const { device, format } = shared;
 
     const ctx = canvas.getContext("webgpu");
     if (!ctx) {
       startMountainFallback2d();
       return;
     }
-    const format = navigator.gpu.getPreferredCanvasFormat();
     ctx.configure({ device, format, alphaMode: "premultiplied" });
     const particleCtx = particleCanvas ? particleCanvas.getContext("webgpu") : null;
     if (particleCanvas && !particleCtx) particleCanvas.style.display = "none";
@@ -2330,13 +3192,15 @@ fn fs_main(v: VOut) -> @location(0) vec4<f32> {
   let spec = pow(max(0.0, dot(n, halfV)), 24.0) * 0.18;
   let lit = 0.35 + ndl * 0.9 + spec;
 
-  // Two palettes, mixed by seasonT.
-  let snowW   = vec3<f32>(0.94, 0.96, 1.00);
-  let rockW   = vec3<f32>(0.55, 0.55, 0.62);
-  let valleyW = vec3<f32>(0.78, 0.82, 0.88);
-  let snowS   = vec3<f32>(0.86, 0.85, 0.78);
-  let rockS   = vec3<f32>(0.52, 0.45, 0.34);
-  let valleyS = vec3<f32>(0.26, 0.52, 0.22);
+  // Two palettes, mixed by seasonT. In dark theme snow tilts toward a
+  // moody alpine-night gray-blue instead of pure white so it doesn't blow
+  // out against the page; rock and valley pick up a matching cool dim.
+  let snowW   = mix(vec3<f32>(0.94, 0.96, 1.00), vec3<f32>(0.30, 0.36, 0.46), u.themeDark);
+  let rockW   = mix(vec3<f32>(0.55, 0.55, 0.62), vec3<f32>(0.20, 0.22, 0.28), u.themeDark);
+  let valleyW = mix(vec3<f32>(0.78, 0.82, 0.88), vec3<f32>(0.24, 0.28, 0.34), u.themeDark);
+  let snowS   = mix(vec3<f32>(0.86, 0.85, 0.78), vec3<f32>(0.24, 0.26, 0.30), u.themeDark);
+  let rockS   = mix(vec3<f32>(0.52, 0.45, 0.34), vec3<f32>(0.18, 0.17, 0.16), u.themeDark);
+  let valleyS = mix(vec3<f32>(0.26, 0.52, 0.22), vec3<f32>(0.10, 0.20, 0.12), u.themeDark);
 
   let t = u.seasonT;
   let snowC   = mix(snowW,   snowS,   t);
@@ -2366,7 +3230,9 @@ fn fs_main(v: VOut) -> @location(0) vec4<f32> {
   // Atmospheric depth blends into a sky tint that also drifts with season.
   let dist = length(v.worldPos - u.cameraPos);
   let fog = clamp((dist - 3.5) / 14.0, 0.0, 0.85);
-  let skyColor = mix(vec3<f32>(0.78, 0.84, 0.95), vec3<f32>(0.88, 0.82, 0.70), t);
+  let skyW = mix(vec3<f32>(0.78, 0.84, 0.95), vec3<f32>(0.12, 0.14, 0.20), u.themeDark);
+  let skyS = mix(vec3<f32>(0.88, 0.82, 0.70), vec3<f32>(0.14, 0.13, 0.18), u.themeDark);
+  let skyColor = mix(skyW, skyS, t);
   color = mix(color, skyColor, fog);
 
   // Premultiplied alpha (matches ctx.configure alphaMode).
@@ -2449,22 +3315,43 @@ fn tree_fs(v: TreeVOut) -> @location(0) vec4<f32> {
   broadLeaf = mix(broadLeaf, broadLeaf * vec3<f32>(1.14, 1.08, 0.88), leafHeight * 0.25);
 
   // Pine needles keep their evergreen mass but vary by tree and light angle.
+  // Two scaled-noise samples give per-tree variation AND a finer per-branch
+  // variation so the canopy reads as clusters of needles rather than a flat mass.
   let pineTint = fract(sin(dot(v.worldPos.xz, vec2<f32>(41.17, 19.31))) * 43758.5453);
+  let needleNoise = fract(sin(dot(v.worldPos.xyz * 7.3, vec3<f32>(12.9898, 78.233, 33.71))) * 43758.5453);
   let pineBand = fract(v.worldPos.y * 9.7 + pineTint * 3.1);
   let upwardNeedle = smoothstep(-0.18, 0.72, n.y);
-  let pineWinter = mix(vec3<f32>(0.82, 0.91, 0.93), vec3<f32>(0.50, 0.66, 0.61), pineTint);
-  let pineSummer = mix(vec3<f32>(0.035, 0.15, 0.075), vec3<f32>(0.18, 0.39, 0.14), pineTint);
+  let pineWinter = mix(vec3<f32>(0.78, 0.88, 0.92), vec3<f32>(0.46, 0.62, 0.58), pineTint);
+  // Deeper, more saturated evergreen for summer with a hint of blue-green variation.
+  let pineSummerDark  = vec3<f32>(0.050, 0.150, 0.080);
+  let pineSummerMid   = vec3<f32>(0.160, 0.350, 0.135);
+  let pineSummerBlue  = vec3<f32>(0.100, 0.280, 0.180);
+  let pineSummer = mix(
+    mix(pineSummerDark, pineSummerMid, pineTint),
+    pineSummerBlue,
+    needleNoise * 0.35,
+  );
   var pineLeaf = mix(pineWinter, pineSummer, u.seasonT);
-  pineLeaf = mix(pineLeaf * vec3<f32>(0.72, 0.86, 0.76), pineLeaf * vec3<f32>(1.16, 1.08, 0.88), upwardNeedle);
-  pineLeaf = mix(pineLeaf, pineLeaf * vec3<f32>(0.86, 0.96, 0.84), step(0.76, pineBand) * 0.18);
-  pineLeaf = mix(pineLeaf, vec3<f32>(0.90, 0.95, 0.98), (1.0 - u.seasonT) * upwardNeedle * 0.25);
+  // Light-facing (top) needles glow brighter; underside needles stay shadowed.
+  pineLeaf = mix(pineLeaf * vec3<f32>(0.62, 0.78, 0.70), pineLeaf * vec3<f32>(1.22, 1.10, 0.86), upwardNeedle);
+  // Faint horizontal banding picks out the whorls.
+  pineLeaf = mix(pineLeaf, pineLeaf * vec3<f32>(0.84, 0.94, 0.82), step(0.76, pineBand) * 0.22);
+  // Snow dust on top-facing needles in winter. Tinted toward a cool blue-gray
+  // in dark theme so the dust matches the mountain palette.
+  let pineSnow = mix(vec3<f32>(0.92, 0.96, 0.99), vec3<f32>(0.40, 0.46, 0.56), u.themeDark);
+  pineLeaf = mix(pineLeaf, pineSnow, (1.0 - u.seasonT) * upwardNeedle * 0.30);
+  // Final dark-theme dim so the canopy reads moodier without losing definition.
+  let pineDarkMul = mix(1.0, 0.55, u.themeDark);
+  pineLeaf = pineLeaf * pineDarkMul;
 
   let leaf = mix(broadLeaf, pineLeaf, v.treeType);
   var color = mix(stem, leaf, v.isLeaf) * lit;
 
   let dist = length(v.worldPos - u.cameraPos);
   let fog = clamp((dist - 3.5) / 14.0, 0.0, 0.85);
-  let skyColor = mix(vec3<f32>(0.78, 0.84, 0.95), vec3<f32>(0.88, 0.82, 0.70), u.seasonT);
+  let skyW = mix(vec3<f32>(0.78, 0.84, 0.95), vec3<f32>(0.12, 0.14, 0.20), u.themeDark);
+  let skyS = mix(vec3<f32>(0.88, 0.82, 0.70), vec3<f32>(0.14, 0.13, 0.18), u.themeDark);
+  let skyColor = mix(skyW, skyS, u.seasonT);
   color = mix(color, skyColor, fog);
 
   let alpha = u.fade;
@@ -2522,7 +3409,9 @@ fn grass_fs(v: GrassVOut) -> @location(0) vec4<f32> {
 
   let dist = length(v.worldPos - u.cameraPos);
   let fog = clamp((dist - 3.5) / 14.0, 0.0, 0.85);
-  let skyColor = mix(vec3<f32>(0.78, 0.84, 0.95), vec3<f32>(0.88, 0.82, 0.70), u.seasonT);
+  let skyW = mix(vec3<f32>(0.78, 0.84, 0.95), vec3<f32>(0.12, 0.14, 0.20), u.themeDark);
+  let skyS = mix(vec3<f32>(0.88, 0.82, 0.70), vec3<f32>(0.14, 0.13, 0.18), u.themeDark);
+  let skyColor = mix(skyW, skyS, u.seasonT);
   color = mix(color, skyColor, fog);
 
   let alpha = u.fade;
@@ -2788,6 +3677,100 @@ fn particle_fs(v: ParticleOut) -> @location(0) vec4<f32> {
     });
     device.queue.writeBuffer(grassInstanceBuffer, 0, grassInstanceData);
 
+    // ── CPU frustum culling. The mountain only re-renders on scroll/theme/
+    // resize, so a per-render linear scan of ~12.5k instances is cheap.
+    // Sphere/plane test rejects instances completely outside the view.
+    // We rewrite the same instance buffer each frame with only the visible
+    // prefix, and pass the surviving count to draw().
+    const culledTreeData = new Float32Array(treeInstanceData.length);
+    const culledPineData = new Float32Array(pineInstanceData.length);
+    const culledGrassData = new Float32Array(grassInstanceData.length);
+    let culledTreeCount = treeInstanceCount;
+    let culledPineCount = pineInstanceCount;
+    let culledGrassCount = grassInstanceCount;
+    const frustumPlanes = new Float32Array(24); // 6 planes × 4 floats
+
+    // Extract the 6 frustum planes from a column-major viewProj matrix that
+    // targets WebGPU clip space (z in [0, 1]). Each plane is normalized so
+    // signed distance to a point is `a*x + b*y + c*z + d`; positive = inside.
+    function extractFrustumPlanes(m, out) {
+      // Left: row3 + row0
+      out[ 0] = m[ 3] + m[ 0]; out[ 1] = m[ 7] + m[ 4]; out[ 2] = m[11] + m[ 8]; out[ 3] = m[15] + m[12];
+      // Right: row3 - row0
+      out[ 4] = m[ 3] - m[ 0]; out[ 5] = m[ 7] - m[ 4]; out[ 6] = m[11] - m[ 8]; out[ 7] = m[15] - m[12];
+      // Bottom: row3 + row1
+      out[ 8] = m[ 3] + m[ 1]; out[ 9] = m[ 7] + m[ 5]; out[10] = m[11] + m[ 9]; out[11] = m[15] + m[13];
+      // Top: row3 - row1
+      out[12] = m[ 3] - m[ 1]; out[13] = m[ 7] - m[ 5]; out[14] = m[11] - m[ 9]; out[15] = m[15] - m[13];
+      // Near (D3D-style z >= 0): row2
+      out[16] = m[ 2];          out[17] = m[ 6];          out[18] = m[10];          out[19] = m[14];
+      // Far: row3 - row2
+      out[20] = m[ 3] - m[ 2]; out[21] = m[ 7] - m[ 6]; out[22] = m[11] - m[10]; out[23] = m[15] - m[14];
+      for (let p = 0; p < 6; p++) {
+        const o = p * 4;
+        const a = out[o], b = out[o + 1], c = out[o + 2];
+        const inv = 1 / Math.max(1e-8, Math.hypot(a, b, c));
+        out[o] = a * inv; out[o + 1] = b * inv; out[o + 2] = c * inv; out[o + 3] = out[o + 3] * inv;
+      }
+    }
+
+    function cullStride6(src, total, planes, centerYMul, radiusMul, out) {
+      let count = 0;
+      for (let i = 0; i < total; i++) {
+        const off = i * 6;
+        const x = src[off], yb = src[off + 1], z = src[off + 2], scale = src[off + 3];
+        const cy = yb + centerYMul * scale;
+        const r = radiusMul * scale;
+        let inside = true;
+        for (let p = 0; p < 6; p++) {
+          const o = p * 4;
+          if (planes[o] * x + planes[o + 1] * cy + planes[o + 2] * z + planes[o + 3] < -r) {
+            inside = false;
+            break;
+          }
+        }
+        if (inside) {
+          const o2 = count * 6;
+          out[o2]     = x;
+          out[o2 + 1] = yb;
+          out[o2 + 2] = z;
+          out[o2 + 3] = scale;
+          out[o2 + 4] = src[off + 4];
+          out[o2 + 5] = src[off + 5];
+          count++;
+        }
+      }
+      return count;
+    }
+
+    function cullStride5(src, total, planes, centerYMul, radiusMul, out) {
+      let count = 0;
+      for (let i = 0; i < total; i++) {
+        const off = i * 5;
+        const x = src[off], yb = src[off + 1], z = src[off + 2], scale = src[off + 3];
+        const cy = yb + centerYMul * scale;
+        const r = radiusMul * scale;
+        let inside = true;
+        for (let p = 0; p < 6; p++) {
+          const o = p * 4;
+          if (planes[o] * x + planes[o + 1] * cy + planes[o + 2] * z + planes[o + 3] < -r) {
+            inside = false;
+            break;
+          }
+        }
+        if (inside) {
+          const o2 = count * 5;
+          out[o2]     = x;
+          out[o2 + 1] = yb;
+          out[o2 + 2] = z;
+          out[o2 + 3] = scale;
+          out[o2 + 4] = src[off + 4];
+          count++;
+        }
+      }
+      return count;
+    }
+
     const grassPipeline = device.createRenderPipeline({
       layout: pipelineLayout,
       vertex: {
@@ -2929,6 +3912,17 @@ fn particle_fs(v: ParticleOut) -> @location(0) vec4<f32> {
       uniformData[27] = displayH;
       device.queue.writeBuffer(uniformBuffer, 0, uniformData);
 
+      // Frustum-cull instances before uploading. The bounding-sphere radii
+      // are deliberately generous to cover the tallest tree/widest droop;
+      // popping at the edge of view is more jarring than the cost saved.
+      extractFrustumPlanes(vp, frustumPlanes);
+      culledTreeCount  = cullStride6(treeInstanceData,  treeInstanceCount,  frustumPlanes, 0.70, 1.30, culledTreeData);
+      culledPineCount  = cullStride6(pineInstanceData,  pineInstanceCount,  frustumPlanes, 0.85, 1.55, culledPineData);
+      culledGrassCount = cullStride5(grassInstanceData, grassInstanceCount, frustumPlanes, 0.05, 0.18, culledGrassData);
+      if (culledTreeCount > 0)  device.queue.writeBuffer(treeInstanceBuffer,  0, culledTreeData,  0, culledTreeCount  * 6);
+      if (culledPineCount > 0)  device.queue.writeBuffer(pineInstanceBuffer,  0, culledPineData,  0, culledPineCount  * 6);
+      if (culledGrassCount > 0) device.queue.writeBuffer(grassInstanceBuffer, 0, culledGrassData, 0, culledGrassCount * 5);
+
       const tex = ctx.getCurrentTexture();
       const cmd = device.createCommandEncoder();
       const pass = cmd.beginRenderPass({
@@ -2954,16 +3948,16 @@ fn particle_fs(v: ParticleOut) -> @location(0) vec4<f32> {
       pass.setPipeline(treePipeline);
       pass.setVertexBuffer(0, treeVertBuffer);
       pass.setVertexBuffer(1, treeInstanceBuffer);
-      pass.draw(treeVertCount, treeInstanceCount);
+      if (culledTreeCount > 0) pass.draw(treeVertCount, culledTreeCount);
       // Pines reuse the same pipeline (same vertex layout) but their own
       // geometry and instance band higher up the mountain.
       pass.setVertexBuffer(0, pineVertBuffer);
       pass.setVertexBuffer(1, pineInstanceBuffer);
-      pass.draw(pineVertCount, pineInstanceCount);
+      if (culledPineCount > 0) pass.draw(pineVertCount, culledPineCount);
       pass.setPipeline(grassPipeline);
       pass.setVertexBuffer(0, grassVertBuffer);
       pass.setVertexBuffer(1, grassInstanceBuffer);
-      pass.draw(grassVertCount, grassInstanceCount);
+      if (culledGrassCount > 0) pass.draw(grassVertCount, culledGrassCount);
       pass.end();
       device.queue.submit([cmd.finish()]);
     }
@@ -3001,18 +3995,39 @@ fn particle_fs(v: ParticleOut) -> @location(0) vec4<f32> {
       device.queue.submit([cmd.finish()]);
     }
 
-    // The mountain surface only redraws on scroll/resize, while the overlay
-    // particle canvas redraws each frame for falling snow/leaves.
+    // The mountain surface only redraws on scroll/resize/theme. The particle
+    // canvas re-renders each frame, but only while the backdrop's content
+    // range is in view — outside that range we skip every GPU submission.
     let needsRender = true;
-    const schedule = () => { needsRender = true; };
+    let mountainVisible = false;
+    let rafQueued = false;
+    function ensureTick() {
+      if (rafQueued || !mountainVisible) return;
+      rafQueued = true;
+      requestAnimationFrame(tick);
+    }
+    function schedule() {
+      needsRender = true;
+      ensureTick();
+    }
     function tick(now) {
+      rafQueued = false;
+      if (!mountainVisible) return;
       const nowSeconds = now * 0.001;
+      const phases = getScrollPhases();
+      if (phases.p1 < FADE_THRESHOLD) {
+        // Section is in view (IntersectionObserver says so) but the fade
+        // mapping puts the mountain at zero opacity — drop GPU work.
+        setMountainOpacity(0);
+        ensureTick();
+        return;
+      }
       if (needsRender) {
         needsRender = false;
         render(nowSeconds);
       }
       renderParticles(nowSeconds);
-      requestAnimationFrame(tick);
+      ensureTick();
     }
     const themeObserver = new MutationObserver(schedule);
     themeObserver.observe(document.documentElement, {
@@ -3021,8 +4036,29 @@ fn particle_fs(v: ParticleOut) -> @location(0) vec4<f32> {
     });
     window.addEventListener("scroll", schedule, { passive: true });
     window.addEventListener("resize", () => { resize(); schedule(); });
-    schedule();
-    requestAnimationFrame(tick);
+
+    const visibleSections = new Set();
+    const visObserver = new IntersectionObserver((entries) => {
+      const wasVisible = mountainVisible;
+      for (const e of entries) {
+        if (e.isIntersecting) visibleSections.add(e.target);
+        else visibleSections.delete(e.target);
+      }
+      mountainVisible = visibleSections.size > 0;
+      if (mountainVisible && !wasVisible) {
+        needsRender = true;
+        ensureTick();
+      }
+    }, { rootMargin: "200px 0px 200px 0px" });
+    const observedSections = ["skills", "education", "hobbies"]
+      .map((id) => document.getElementById(id))
+      .filter(Boolean);
+    if (observedSections.length === 0) {
+      mountainVisible = true;
+      ensureTick();
+    } else {
+      for (const sec of observedSections) visObserver.observe(sec);
+    }
   })().catch(() => {
     startMountainFallback2d();
   });
