@@ -7,3 +7,5 @@ node_modules/
 .firebaserc
 AGENTS.md
 .agents/**
+firebase-agent.skill
+skills-lock.json
