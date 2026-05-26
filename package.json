@@ -8,8 +8,8 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "firebase": "^10.12.2",
-    "firebase-tools": "^15.17.0"
+    "firebase": "^12.13.0",
+    "firebase-tools": "^15.18.0"
   },
   "devDependencies": {},
   "description": ""

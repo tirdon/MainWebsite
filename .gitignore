@@ -9,3 +9,6 @@ AGENTS.md
 .agents/**
 firebase-agent.skill
 skills-lock.json
+.antigravitycli/**
+assets/_logo.png
+firebase-debug.log
