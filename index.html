@@ -21,6 +21,39 @@
   <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js" crossorigin="anonymous"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js" crossorigin="anonymous" onload="renderMathInElement(document.body);"></script>
 
+  <!-- Fallback for users with JavaScript disabled -->
+  <noscript>
+    <style>
+      /* Make all JS-driven revealed content visible */
+      .reveal, .reveal.visible,
+      .text-reveal, .text-reveal .word,
+      #about #name {
+        opacity: 1 !important;
+        transform: none !important;
+        filter: none !important;
+      }
+      
+      /* Reset the hero container layout */
+      .hero-scroll {
+        height: auto !important;
+      }
+      .hero-sticky {
+        position: relative !important;
+        height: auto !important;
+        padding-top: 120px !important;
+        padding-bottom: 60px !important;
+      }
+      
+      /* Hide WebGL/canvas backgrounds */
+      .mountain-bg-canvas,
+      .mountain-sky-orb,
+      .mountain-particle-canvas,
+      .hero-bg-canvas {
+        display: none !important;
+      }
+    </style>
+  </noscript>
+
   <link rel="stylesheet" href="styles.css?v=1.0.2" />
 </head>
 
@@ -587,6 +620,8 @@
 
   <!-- ═══════════ SCRIPTS ═══════════ -->
   <script src="main.js"></script>
+  <script src="WebGPURenderer.js"></script>
+  <script src="physicsSims.js"></script>
+  <script src="lifeSim.js"></script>
 </body>
-
 </html>
