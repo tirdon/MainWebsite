@@ -1533,7 +1533,7 @@ fn particle_fs(v: ParticleOut) -> @location(0) vec4<f32> {
     const particlePipelineLayout = device.createPipelineLayout({
       bindGroupLayouts: [particleBindGroupLayout],
     });
-    const PARTICLE_COUNT = 1200;
+    const PARTICLE_COUNT = 256;
     const particleUniformBuffer = device.createBuffer({
       size: 32,
       usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
