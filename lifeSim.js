@@ -1,7 +1,4 @@
-// ════════════════════════════════════
-// HERO BACKGROUND: Conway's Game of Life
-// ════════════════════════════════════
-(() => {
+(() => { // HERO BACKGROUND: Conway's Game of Life
   const canvas = document.getElementById("lifeSim");
   if (!canvas) return;
   const ctx = canvas.getContext("2d");
@@ -11,7 +8,7 @@
   let lastStep = 0;
   const STEP_MS = 160;
   let generation = 0;
-  const RESEED_GENERATIONS = 400;
+  const RESEED_GENERATIONS = 1000;
 
   function alloc() {
     grid = new Uint8Array(COLS * ROWS);

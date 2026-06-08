@@ -959,7 +959,11 @@ fn fs_main(@builtin(position) fragPos: vec4<f32>) -> @location(0) vec4<f32> {
         const nb = spins[(i + 1) % GRID][j] + spins[(i - 1 + GRID) % GRID][j] +
                    spins[i][(j + 1) % GRID] + spins[i][(j - 1 + GRID) % GRID];
         const dE = 2 * J_COUPLING * spin * nb;
-        if (dE <= 0 || Math.random() < Math.exp(-dE / localT)) spins[i][j] = -spin;
+        let flip = false;
+        if (dE < 0) flip = true;
+        else if (dE === 0) flip = Math.random() < 0.5;
+        else flip = Math.random() < Math.exp(-dE / localT);
+        if (flip) spins[i][j] = -spin;
       }
       const imageData = offCtx.createImageData(GRID, GRID);
       const data = imageData.data;
@@ -1017,8 +1021,18 @@ struct IsingParams {
 @group(0) @binding(0) var<storage, read_write> spins: array<i32>;
 @group(0) @binding(1) var<uniform> p: IsingParams;
 
+fn pcg_hash(input: u32) -> u32 {
+  var state = input * 747796405u + 2891336453u;
+  var word = ((state >> ((state >> 28u) + 4u)) ^ state) * 277803737u;
+  return (word >> 22u) ^ word;
+}
+
 fn rand(seed: vec3<f32>) -> f32 {
-  return fract(sin(dot(seed, vec3<f32>(127.1, 311.7, 74.7))) * 43758.5453);
+  let sx = bitcast<u32>(seed.x);
+  let sy = bitcast<u32>(seed.y);
+  let sz = bitcast<u32>(seed.z);
+  let h = pcg_hash(sx ^ pcg_hash(sy ^ pcg_hash(sz)));
+  return f32(h) * (1.0 / 4294967296.0);
 }
 
 @compute @workgroup_size(8, 8)
@@ -1045,7 +1059,15 @@ fn cs_step(@builtin(global_invocation_id) gid: vec3<u32>) {
          + spins[i * p.grid + ((j + p.grid - 1u) % p.grid)];
   let dE = 2.0 * p.J * f32(spin) * f32(nb);
   let r = rand(vec3<f32>(f32(i) + 0.5, f32(j) + 0.5, p.seed));
-  if (dE <= 0.0 || r < exp(-dE / max(localT, 0.0001))) {
+  var flip = false;
+  if (dE < 0.0) {
+    flip = true;
+  } else if (dE == 0.0) {
+    flip = r < 0.5;
+  } else {
+    flip = r < exp(-dE / max(localT, 0.0001));
+  }
+  if (flip) {
     spins[k] = -spin;
   }
 }
@@ -1201,10 +1223,14 @@ fn fs_main(@builtin(position) fragPos: vec4<f32>) -> @location(0) vec4<f32> {
 
       const encoder = device.createCommandEncoder();
       {
-        const cpass = encoder.beginComputePass();
+        let cpass = encoder.beginComputePass();
         cpass.setPipeline(stepPipeline);
         cpass.setBindGroup(0, stepBgBlack);
         cpass.dispatchWorkgroups(dispatchN, dispatchN);
+        cpass.end();
+
+        cpass = encoder.beginComputePass();
+        cpass.setPipeline(stepPipeline);
         cpass.setBindGroup(0, stepBgWhite);
         cpass.dispatchWorkgroups(dispatchN, dispatchN);
         cpass.end();
