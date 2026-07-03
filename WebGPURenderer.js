@@ -1766,7 +1766,7 @@ fn particle_fs(v: ParticleOut) -> @location(0) vec4<f32> {
         ensureTick();
       }
     }, { rootMargin: "200px 0px 200px 0px" });
-    const observedSections = ["skills", "education", "hobbies"]
+    const observedSections = ["skills", "education", "project", "hobbies"]
       .map((id) => document.getElementById(id))
       .filter(Boolean);
     if (observedSections.length === 0) {

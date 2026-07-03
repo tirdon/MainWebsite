@@ -26,6 +26,10 @@
   --section-divider: rgba(28, 25, 23, 0.07);
   --toggle-bg: #d8d2c4;
   --toggle-knob: #ffffff;
+  /* Fenestra — project-card window framing */
+  --window-frame: #8a6248;
+  --window-frame-deep: #5d4130;
+  --window-veil: rgba(250, 247, 240, 0.60);
 }
 
 [data-theme="dark"] {
@@ -53,6 +57,10 @@
   --section-divider: rgba(237, 232, 222, 0.07);
   --toggle-bg: #292a32;
   --toggle-knob: #e89070;
+  /* Fenestra — project-card window framing */
+  --window-frame: #46392e;
+  --window-frame-deep: #241c15;
+  --window-veil: rgba(16, 18, 26, 0.62);
 }
 
 /* ══════════════════════════════════════════════
@@ -226,8 +234,11 @@ a:hover {
 }
 
 .container nav ul li a {
-  display: block;
-  padding: 7px 14px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 6px 14px 7px;
   border-radius: 10px;
   font-size: 0.78rem;
   font-weight: 600;
@@ -236,6 +247,14 @@ a:hover {
   letter-spacing: 0.5px;
   position: relative;
   white-space: nowrap;
+}
+
+/* Latin translation drops to its own line beneath the word, wherever
+   the nav shows it (desktop pills above 1200px, mobile flyout below
+   900px) — scoped here so it doesn't touch .latin on section headings. */
+.container nav ul li a .latin {
+  display: block;
+  margin-left: 0;
 }
 
 .container nav ul li a:hover {
@@ -795,8 +814,11 @@ footer h2::after,
   outline: none !important;
 }
 
-/* Making the skills category stand out or span across */
-#example > span:first-child {
+/* Making the skills category stand out or span across.
+   Base layout (also the touch / narrow / reduced-motion fallback):
+   a plain responsive grid with all three categories visible. The
+   pile-and-fan behaviour is layered on top in the media query below. */
+.skill-deck {
   grid-column: 1 / -1;
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
@@ -868,6 +890,81 @@ footer h2::after,
   transition: width 1.5s cubic-bezier(0.19, 1, 0.22, 1);
 }
 
+/* ══════════════════════════════════════════════
+   Skill Deck — a tidy pile that fans into a hand on hover.
+   Progressive enhancement: applied only on hover-capable, wide,
+   motion-OK viewports. Touch / narrow / reduced-motion keep the base
+   .skill-deck grid above, so every category stays visible & readable.
+   ══════════════════════════════════════════════ */
+@media (hover: hover) and (min-width: 1000px) and (prefers-reduced-motion: no-preference) {
+  .skill-deck {
+    grid-template-columns: 1fr;      /* one cell; the cards overlap inside it */
+    justify-items: center;
+    align-items: start;
+    justify-self: center;
+    width: min(900px, 100%);
+    gap: 0;
+    padding-top: 10px;               /* headroom for the popped-up card */
+    perspective: 1400px;
+  }
+
+  .skill-deck .skill-category {
+    grid-row: 1;
+    grid-column: 1;                  /* all three share one cell → a pile */
+    width: 260px;
+    height: auto;                    /* natural height, not stretched */
+    margin: 0;
+    transform-origin: bottom center;
+    backface-visibility: hidden;
+    will-change: transform;
+    transition:
+      transform 0.55s cubic-bezier(0.34, 1.56, 0.64, 1),
+      box-shadow 0.4s ease,
+      border-color 0.4s ease;
+    /* resting pile */
+    transform: translate(var(--rest-tx), var(--rest-ty)) rotate(var(--rest-rot));
+  }
+
+  /* per-card fan geometry (--tx / --rot / --fan-ty) and resting offsets */
+  .skill-deck .skill-category:nth-child(1) {
+    --tx: -116%; --rot: -6deg; --fan-ty: 0px;
+    --rest-tx: -12px; --rest-ty: 5px; --rest-rot: -5deg;
+    z-index: 1;
+  }
+  .skill-deck .skill-category:nth-child(2) {
+    --tx: 0%; --rot: 0deg; --fan-ty: -14px;
+    --rest-tx: 0px; --rest-ty: 0px; --rest-rot: -1deg;
+    z-index: 3;                      /* tallest category rests on top of the pile */
+  }
+  .skill-deck .skill-category:nth-child(3) {
+    --tx: 116%; --rot: 6deg; --fan-ty: 0px;
+    --rest-tx: 12px; --rest-ty: 9px; --rest-rot: 5deg;
+    z-index: 2;
+  }
+
+  /* fan the whole hand out on hover or keyboard focus */
+  .skill-deck:hover .skill-category,
+  .skill-deck:focus-within .skill-category {
+    transform: translateX(var(--tx)) translateY(var(--fan-ty)) rotate(var(--rot));
+  }
+
+  /* the card under the cursor pops up, straightens and scales.
+     Declared after the fan rule so it wins at equal specificity. */
+  .skill-deck .skill-category:hover,
+  .skill-deck .skill-category:focus-within {
+    transform: translateX(var(--tx)) translateY(-26px) rotate(0deg) scale(1.05);
+    z-index: 10;
+    box-shadow: var(--shadow-glow);
+    border-color: var(--accent-1);
+  }
+
+  /* the deck is tabbable; focusing it highlights the resting top card */
+  .skill-deck:focus-visible .skill-category:nth-child(2) {
+    box-shadow: var(--shadow-glow);
+    border-color: var(--accent-1);
+  }
+}
+
 /* Physics canvases */
 .physics-canvas-wrapper {
   background: var(--bg-card);
@@ -912,7 +1009,15 @@ footer h2::after,
 
 .physics-equation {
   align-self: stretch;
-  height: 72px;
+  /* min-height, not height: the Ising card's equation is a line break
+     plus a \begin{cases} brace — several KaTeX rows tall, well past a
+     single equation line. A fixed height + overflow-y:hidden clipped
+     it (and sliced clean through the stretchy brace glyph). Letting it
+     grow keeps short single-line equations exactly as before (still
+     centered in a 72px-tall box) while tall ones simply take more
+     room — CSS Grid's default row-stretch already keeps card heights
+     matched within a row. */
+  min-height: 72px;
   margin: 0 0 14px;
   color: var(--text-muted);
   font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
@@ -920,10 +1025,21 @@ footer h2::after,
   line-height: 1.35;
   letter-spacing: 0;
   overflow-x: auto;
-  overflow-y: hidden;
+  overflow-y: visible;
   display: flex;
   align-items: center;
-  justify-content: center;
+  /* safe center: centers short equations same as before, but falls
+     back to start-alignment when content is wider than the box — a
+     plain "center" here would center the OVERFLOW too, hiding equal
+     slices off both edges instead of just the right side. */
+  justify-content: safe center;
+}
+
+/* Ising's cases-brace formula is a touch wider than its card even at
+   the shared font-size (the other five fit fine at 0.74rem) — shrink
+   just this one rather than the whole set. */
+.physics-equation.dense {
+  font-size: 0.62rem;
 }
 
 .physics-equation .katex-display {
@@ -1037,61 +1153,255 @@ footer h2::after,
    Project Cards — Swipe Carousel
    ══════════════════════════════════════════════ */
 
-/* Carousel wrapper */
+/* Tall scroll driver — the extra height is what the orbit consumes.
+   The stage inside stays pinned while scroll winds the cone-spring. */
 .project-carousel {
   position: relative;
   margin-top: 32px;
-  /* let arrows sit outside on large screens */
+  height: 420vh;
 }
 
-/* Horizontal scroll track */
-.project-cards {
+.carousel-stage {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  height: 100lvh;
   display: flex;
-  gap: 24px;
-  overflow-x: auto;
-  scroll-snap-type: x mandatory;
-  scroll-behavior: smooth;
-  -webkit-overflow-scrolling: touch;
-  /* Enough side padding so first & last cards can be centered */
-  padding: 20px calc(50% - min(240px, 42.5vw)) 40px;
-  /* hide scrollbar across browsers */
-  scrollbar-width: none;
-  -ms-overflow-style: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
 }
 
-.project-cards::-webkit-scrollbar {
-  display: none;
+/* 3D space for the orbit — cards are positioned by JS transforms.
+   The drum floats slightly high in the stage so the windows ring sits
+   over the hill crest of the backdrop. */
+.project-cards {
+  position: relative;
+  width: min(480px, 85vw);
+  height: clamp(440px, 70vh, 650px);
+  perspective: 1500px;
+  perspective-origin: 50% 42%;
+  margin-bottom: 5vh;
+  /* .project-card fills this box via inset:0, so its window+body split
+     comes entirely from this height. Without flex-shrink:0, the column
+     flex in .carousel-stage silently squeezed this below its clamp
+     floor on short viewports — the window (aspect-ratio pinned to
+     width) held its size and ate the body, so text vanished. */
+  flex-shrink: 0;
 }
 
-/* Individual card */
+/* Individual card — a plastered wall pierced by a real window. The card
+   itself is transparent; the "wall" is painted by the aperture's huge
+   spread shadow (clipped by overflow) so the arch stays a true hole
+   revealing the fixed mountain canvas behind the page. */
 .project-card {
-  flex: 0 0 min(480px, 85vw);
-  scroll-snap-align: center;
-  background: var(--bg-card);
+  position: absolute;
+  inset: 0;
+  background: transparent;
   border-radius: 28px;
-  padding: 0 32px 32px;
+  padding: 0;
   border: 1px solid var(--border-color);
   box-shadow: var(--shadow-sm);
-  position: relative;
   overflow: hidden;
   display: flex;
   flex-direction: column;
   cursor: grab;
   user-select: none;
+  /* transform is driven per-frame by the orbit JS — never transition it */
   transition:
-    transform 0.5s cubic-bezier(0.23, 1, 0.32, 1),
     box-shadow 0.5s cubic-bezier(0.23, 1, 0.32, 1),
-    opacity 0.5s cubic-bezier(0.23, 1, 0.32, 1),
+    filter 0.5s cubic-bezier(0.23, 1, 0.32, 1),
     border-color 0.4s ease;
-  will-change: transform, opacity;
+  will-change: transform, filter;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
 }
 
 .project-card:active {
   cursor: grabbing;
 }
 
-/* Gradient accent strip on top */
-.project-card::before {
+/* Active card highlight — applied via JS */
+.project-card.card-active {
+  filter: none;
+  box-shadow:
+    0 12px 40px rgba(0, 0, 0, 0.08),
+    0 2px 12px rgba(0, 0, 0, 0.04);
+}
+
+[data-theme="dark"] .project-card.card-active {
+  box-shadow:
+    0 12px 40px rgba(0, 0, 0, 0.35),
+    0 2px 12px rgba(0, 0, 0, 0.2);
+}
+
+/* Non-active cards recede — desaturated wall, never translucent
+   (the mountain must only show through the glass, not the text). */
+.project-card:not(.card-active) {
+  filter: saturate(0.45) brightness(0.97);
+}
+
+/* ── Fenestra: arched window onto the live mountain backdrop ── */
+.project-cards {
+  counter-reset: fenestra;
+}
+
+.project-card {
+  counter-increment: fenestra;
+}
+
+.project-card-window {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 11;
+  flex: none;
+}
+
+/* Roman numeral inscribed on the wall above each arch */
+.project-card-window::after {
+  content: counter(fenestra, upper-roman);
+  position: absolute;
+  top: 3px;
+  left: 0;
+  right: 0;
+  text-align: center;
+  font-family: "Instrument Serif", "Computer Modern Serif", serif;
+  font-size: 0.72rem;
+  letter-spacing: 0.35em;
+  text-indent: 0.35em;
+  color: var(--text-muted);
+}
+
+/* The aperture is a transparent Roman arch. Shadow stack, outside-in:
+   frame edge → frame → frame edge → wall fill (huge spread, clipped by
+   the card) → inset reveal shadows for recessed depth. */
+.window-aperture {
+  position: absolute;
+  top: 26px;
+  bottom: 30px;
+  left: 21%;
+  right: 21%;
+  border-radius: 999px 999px 10px 10px;
+  overflow: hidden;
+  box-shadow:
+    0 0 0 1.5px var(--window-frame-deep),
+    0 0 0 7px var(--window-frame),
+    0 0 0 8.5px var(--window-frame-deep),
+    0 0 0 9999px var(--bg-card),
+    inset 0 3px 6px rgba(10, 8, 6, 0.30),
+    inset 0 14px 32px rgba(10, 8, 6, 0.18);
+}
+
+/* Glass: permanent faint tint + reflection so the pane reads as glazing
+   even if the backdrop ever fails to render. */
+.window-glass {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background:
+    linear-gradient(158deg,
+      rgba(255, 255, 255, 0.13) 0%,
+      rgba(255, 255, 255, 0.03) 32%,
+      transparent 54%,
+      rgba(142, 172, 214, 0.09) 100%);
+}
+
+/* Frost veil — clears when the card becomes active */
+.window-glass::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: var(--window-veil);
+  opacity: 1;
+  transition: opacity 0.6s cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.project-card.card-active .window-glass::before {
+  opacity: 0;
+}
+
+/* Glint sweep across the pane when hovering the active card.
+   will-change keeps this on a persistent compositor layer — promoting it
+   lazily on hover re-rasterizes the 3D-transformed card and shows up as
+   a visible jump. */
+.window-glass::after {
+  content: "";
+  position: absolute;
+  top: -20%;
+  bottom: -20%;
+  left: -30%;
+  width: 34%;
+  background: linear-gradient(90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.16) 50%,
+    transparent 100%);
+  transform: translateX(-120%) rotate(14deg);
+  pointer-events: none;
+  will-change: transform;
+}
+
+.project-card.card-active:hover .window-glass::after {
+  animation: windowGlint 1.4s cubic-bezier(0.4, 0, 0.2, 1) 1;
+}
+
+@keyframes windowGlint {
+  from { transform: translateX(-120%) rotate(14deg); }
+  to { transform: translateX(480%) rotate(14deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .project-card.card-active:hover .window-glass::after {
+    animation: none;
+  }
+}
+
+/* Transom at the arch spring line + mullion below it */
+.window-bar {
+  position: absolute;
+  background: var(--window-frame);
+  box-shadow: 0 1px 2px rgba(10, 8, 6, 0.35);
+}
+
+.window-bar-transom {
+  left: 0;
+  right: 0;
+  top: 48%;
+  height: 5px;
+}
+
+.window-bar-mullion {
+  top: calc(48% + 5px);
+  bottom: 0;
+  left: calc(50% - 2px);
+  width: 4px;
+  box-shadow: 1px 0 2px rgba(10, 8, 6, 0.30);
+}
+
+/* Sill ledge beneath the aperture */
+.window-sill {
+  position: absolute;
+  bottom: 20px;
+  left: calc(21% - 16px);
+  right: calc(21% - 16px);
+  height: 9px;
+  border-radius: 3px 3px 5px 5px;
+  background: linear-gradient(180deg, var(--window-frame) 0%, var(--window-frame-deep) 100%);
+  box-shadow: 0 3px 7px rgba(10, 8, 6, 0.25);
+}
+
+/* Card body — the opaque wall carrying title, description, tags */
+.project-card-body {
+  position: relative;
+  background: var(--bg-card);
+  padding: 24px 32px 32px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Gradient accent strip along the top of the body */
+.project-card-body::before {
   content: "";
   position: absolute;
   top: 0;
@@ -1104,66 +1414,8 @@ footer h2::after,
   transition: transform 0.6s cubic-bezier(0.23, 1, 0.32, 1);
 }
 
-/* Active card highlight — applied via JS */
-.project-card.card-active {
-  transform: scale(1);
-  opacity: 1;
-  box-shadow:
-    0 12px 40px rgba(0, 0, 0, 0.08),
-    0 2px 12px rgba(0, 0, 0, 0.04);
-}
-
-.project-card.card-active::before {
+.project-card.card-active .project-card-body::before {
   transform: scaleX(1);
-}
-
-[data-theme="dark"] .project-card.card-active {
-  box-shadow:
-    0 12px 40px rgba(0, 0, 0, 0.35),
-    0 2px 12px rgba(0, 0, 0, 0.2);
-}
-
-/* Non-active cards recede */
-.project-card:not(.card-active) {
-  transform: scale(0.92);
-  opacity: 0.5;
-}
-
-/* Hero image */
-.project-card-image {
-  position: relative;
-  width: calc(100% + 64px);
-  margin: 0 -32px 24px;
-  aspect-ratio: 16 / 9;
-  overflow: hidden;
-  background: var(--skill-track);
-}
-
-.project-card-image::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(180deg, transparent 60%, rgba(0, 0, 0, 0.18) 100%);
-  pointer-events: none;
-}
-
-.project-card-image img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
-  transform: scale(1.02);
-  transition: transform 0.7s cubic-bezier(0.23, 1, 0.32, 1), filter 0.5s ease;
-  filter: saturate(0.9);
-}
-
-.project-card.card-active .project-card-image img {
-  transform: scale(1.08);
-  filter: saturate(1);
-}
-
-.project-card > h3 {
-  margin-top: 4px;
 }
 
 /* Title */
@@ -1188,8 +1440,20 @@ footer h2::after,
   color: var(--text-secondary);
   line-height: 1.72;
   margin-bottom: 24px;
-  flex-grow: 1;
   letter-spacing: 0.01em;
+  /* .project-cards has a hard height clamp (it doesn't grow to fit
+     content), so without a cap the longest description ("Embedded
+     Swift Interop") overflows .project-card's own overflow:hidden —
+     at full desktop height, not just on short viewports.
+     No flex-grow: -webkit-line-clamp only truncates at a clean line
+     boundary when the box is sized to its own (clamped) content —
+     stretching it via flex-grow confuses the legacy line-count algorithm
+     and lets extra lines bleed past the ellipsis. Tags' margin-top:auto
+     already handles pushing the tag row to the bottom of the card. */
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
 }
 
 /* Tags */
@@ -1198,6 +1462,13 @@ footer h2::after,
   flex-wrap: wrap;
   gap: 8px;
   margin-top: auto;
+  /* .project-cards has a hard height clamp, so a card with enough tags
+     to wrap past one row (e.g. Embedded Swift Interop's six) would
+     push past the card's own overflow:hidden and get its second row
+     guillotined at the edge. Capping to one row makes that deliberate:
+     overflow tags are cleanly hidden rather than half-sliced. */
+  max-height: 34px;
+  overflow: hidden;
 }
 
 .project-card-tags span {
@@ -1223,7 +1494,7 @@ footer h2::after,
   position: absolute;
   top: 50%;
   transform: translateY(-70%);
-  z-index: 10;
+  z-index: 2000;
   width: 48px;
   height: 48px;
   border-radius: 50%;
@@ -1273,8 +1544,10 @@ footer h2::after,
   justify-content: center;
   align-items: center;
   gap: 8px;
-  margin-top: 12px;
+  margin-top: 20px;
   flex-wrap: wrap;
+  position: relative;
+  z-index: 2000;
 }
 
 .carousel-dot {
@@ -1334,19 +1607,40 @@ footer h2::after,
   font-weight: 600;
   color: var(--text-muted);
   letter-spacing: 0.08em;
+  position: relative;
+  z-index: 2000;
 }
 
 /* ── Responsive ── */
 @media (max-width: 800px) {
-  .project-card {
-    flex: 0 0 min(400px, 82vw);
-    border-radius: 22px;
-    padding: 0 24px 24px;
+  .project-cards {
+    width: min(400px, 82vw);
+    height: clamp(440px, 74vh, 660px);
   }
 
-  .project-card-image {
-    width: calc(100% + 48px);
-    margin: 0 -24px 20px;
+  .project-card {
+    border-radius: 22px;
+  }
+
+  .project-card-body {
+    padding: 20px 24px 24px;
+  }
+
+  .window-aperture {
+    top: 20px;
+    bottom: 24px;
+    box-shadow:
+      0 0 0 1.5px var(--window-frame-deep),
+      0 0 0 5px var(--window-frame),
+      0 0 0 6.5px var(--window-frame-deep),
+      0 0 0 9999px var(--bg-card),
+      inset 0 3px 6px rgba(10, 8, 6, 0.30),
+      inset 0 14px 32px rgba(10, 8, 6, 0.18);
+  }
+
+  .window-sill {
+    bottom: 15px;
+    height: 8px;
   }
 
   .carousel-arrow {
@@ -1359,11 +1653,94 @@ footer h2::after,
 }
 
 @media (max-width: 500px) {
-  .project-card {
-    flex: 0 0 88vw;
+  .project-cards {
+    width: 88vw;
   }
 
   .carousel-arrow {
+    display: none;
+  }
+}
+
+/* Short viewports: as the pinned stage loses vertical room, shrink the
+   window band first (its aspect-ratio is pinned to width, so it won't
+   yield on its own) and reclaim spacing, so the body text always keeps
+   a readable minimum instead of being squeezed to nothing.
+   One threshold, not two: an earlier lighter-touch tier here left a
+   band (roughly 660–780px) where the container had shrunk but the
+   text/window hadn't yet, and the worst-case card (six tags, long
+   description) clipped. Verified empirically against every card at
+   every height down to the next tier — see fullmatrix check. */
+@media (max-height: 780px) {
+  .project-cards {
+    height: clamp(340px, 62vh, 650px);
+    margin-bottom: 2vh;
+  }
+
+  .project-card-window {
+    aspect-ratio: 16 / 5;
+  }
+
+  .carousel-dots {
+    margin-top: 10px;
+  }
+
+  .carousel-counter {
+    margin-top: 6px;
+  }
+
+  .project-card-body {
+    padding: 12px 24px 14px;
+  }
+
+  .project-card h3 {
+    font-size: 1.5rem;
+    margin-bottom: 6px;
+  }
+
+  .project-card p {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    overflow: hidden;
+    font-size: 0.84rem;
+    line-height: 1.5;
+    margin-bottom: 6px;
+  }
+}
+
+@media (max-height: 540px) {
+  .project-cards {
+    height: clamp(300px, 58vh, 650px);
+    margin-bottom: 1.5vh;
+  }
+
+  .project-card-window {
+    aspect-ratio: 16 / 5;
+  }
+
+  .project-card-body {
+    padding: 12px 20px 14px;
+  }
+
+  .project-card h3 {
+    font-size: 1.35rem;
+    margin-bottom: 6px;
+  }
+
+  .project-card p {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    overflow: hidden;
+    margin-bottom: 0;
+  }
+
+  /* No room left for a tag row at this height — the card's own
+     overflow:hidden (needed for the window illusion) would otherwise
+     silently guillotine it mid-pill. Title + description carry the
+     card; hiding this is a deliberate call, not a clipping accident. */
+  .project-card-tags {
     display: none;
   }
 }
@@ -1559,14 +1936,16 @@ footer #footer span:hover svg {
   }
 
   .container nav ul li a {
+    align-items: flex-start;
     padding: 12px 16px;
     font-size: 0.95rem;
     border-radius: 12px;
   }
 
+  /* Counteract the ≤1200px rule that hides .latin entirely — the
+     flyout has room to show it, stacked under the word. */
   .container nav ul li a .latin {
-    display: inline-block;
-    margin-left: 6px;
+    display: block;
   }
 
   .container nav ul li a:hover {

@@ -215,7 +215,9 @@ function onDemandWhenVisible(canvas, frame, { rootMargin = "100px" } = {}) {
         }
       });
     },
-    { threshold: 0.15, rootMargin: "0px 0px -50px 0px" },
+    // Low threshold so very tall sections (the 400vh+ project orbit) still
+    // reveal as soon as they meaningfully enter the viewport.
+    { threshold: 0.02, rootMargin: "0px 0px -80px 0px" },
   );
 
   reveals.forEach((el) => revealObserver.observe(el));
@@ -235,7 +237,9 @@ function onDemandWhenVisible(canvas, frame, { rootMargin = "100px" } = {}) {
         }
       });
     },
-    { threshold: 0.05, rootMargin: "-10% 0px -70% 0px" }
+    // threshold 0: a fixed-height spy band can never cover 5% of the
+    // 400vh+ project section, so fire on any intersection instead.
+    { threshold: 0, rootMargin: "-10% 0px -70% 0px" }
   );
 
   const sections = document.querySelectorAll(".main-content > div[id], footer h2[id='contact']");
@@ -395,31 +399,36 @@ document.querySelectorAll('a[href^="#"]').forEach((a) => {
 });
 
 // ────────────────────────────────────
-// Project Cards — Swipe Carousel
+// Project Cards — Scroll-Driven Cone-Spring Orbit
+// The carousel is a tall scroll region with a pinned stage. Page scroll
+// winds a progress value p ∈ [0, N-1]; each card sits on a tapered helix
+// (cone spring) at angular offset (i − p) · 2π/N — the front card is at
+// full radius, cards behind spiral up and inward, scaled down by depth.
 // ────────────────────────────────────
 (() => {
+  const carousel = document.getElementById("projectCarousel");
+  const stage = document.getElementById("carouselStage");
   const track = document.getElementById("projectTrack");
   const dotsContainer = document.getElementById("carouselDots");
   const counter = document.getElementById("carouselCounter");
   const prevBtn = document.getElementById("carouselPrev");
   const nextBtn = document.getElementById("carouselNext");
-  if (!track) return;
+  if (!track || !stage) return;
 
   const cards = Array.from(track.querySelectorAll(".project-card"));
   const total = cards.length;
-  let currentIndex = 0;
+  const STEP = (Math.PI * 2) / total;
+  let currentIndex = -1;
 
   // ── Build dot indicators with title labels ──
   cards.forEach((card, i) => {
     const dot = document.createElement("button");
     dot.classList.add("carousel-dot");
     dot.setAttribute("aria-label", `Go to project ${i + 1}`);
-    // Add title label inside the dot
     const label = document.createElement("span");
     label.classList.add("dot-label");
     label.textContent = card.querySelector("h3").textContent;
     dot.appendChild(label);
-    if (i === 0) dot.classList.add("active");
     dot.addEventListener("click", () => goTo(i));
     dotsContainer.appendChild(dot);
   });
@@ -427,125 +436,152 @@ document.querySelectorAll('a[href^="#"]').forEach((a) => {
   const dots = Array.from(dotsContainer.querySelectorAll(".carousel-dot"));
 
   function updateUI(index) {
+    if (index === currentIndex) return;
     currentIndex = index;
-
-    // Update dots
     dots.forEach((d, i) => d.classList.toggle("active", i === index));
-
-    // Update counter
     counter.textContent = `${index + 1} / ${total}`;
-
-    // Update active card class
     cards.forEach((c, i) => c.classList.toggle("card-active", i === index));
-
-    // Update arrow enabled state
     prevBtn.disabled = index === 0;
     nextBtn.disabled = index === total - 1;
   }
 
-  let navigating = false;
-
-  function goTo(index) {
-    index = Math.max(0, Math.min(total - 1, index));
-    navigating = true;
-    const card = cards[index];
-    const trackRect = track.getBoundingClientRect();
-    const cardRect = card.getBoundingClientRect();
-    // Center the card in the track viewport
-    const scrollTarget = card.offsetLeft - (trackRect.width / 2) + (cardRect.width / 2);
-    track.scrollTo({ left: scrollTarget, behavior: "smooth" });
-    updateUI(index);
-    // Clear navigating flag after scroll settles
-    clearTimeout(navTimeout);
-    navTimeout = setTimeout(() => { navigating = false; }, 500);
+  // Scrollable distance the orbit consumes (section height minus the
+  // pinned viewport-tall stage).
+  function scrollRange() {
+    return Math.max(1, carousel.offsetHeight - stage.offsetHeight);
   }
 
-  let navTimeout;
+  function progress() {
+    const top = carousel.getBoundingClientRect().top + window.scrollY;
+    const p = (window.scrollY - top) / scrollRange();
+    return Math.max(0, Math.min(1, p)) * (total - 1);
+  }
 
-  // ── Arrow buttons ──
+  function layout() {
+    const p = progress();
+    const R0 = Math.min(track.offsetWidth * 0.95, 440);
+    for (let i = 0; i < total; i++) {
+      const d = i - p;
+      const angle = d * STEP;
+      // Cone taper: cards later along the coil orbit tighter; passed
+      // cards swing slightly wider. Clamped so nothing collapses.
+      const R = Math.max(R0 * 0.5, Math.min(R0 * 1.15, R0 * (1 - 0.085 * d)));
+      const x = Math.sin(angle) * R;
+      const z = Math.cos(angle) * R - R0;
+      // Coil rise: left-side windows (already passed, d<0) ride higher;
+      // right-side windows (still upcoming, d>0) dip lower.
+      const y = d * 34;
+      // Tangent plane: the card lies on the cylinder surface, its normal
+      // pointing radially outward (perpendicular to the coil axis).
+      const rot = angle * (180 / Math.PI);
+      const s = Math.max(0.72, 1 - 0.05 * Math.abs(d));
+      // Distant coils dissolve: a tangent card goes edge-on at 90° (and
+      // would show its mirrored back past it), and anything deeper would
+      // be seen THROUGH the front card's glass — the aperture is a real
+      // hole. Fade out just before edge-on.
+      const deg = Math.abs(angle) * (180 / Math.PI);
+      const fade = deg < 68 ? 1 : deg > 92 ? 0 : 1 - (deg - 68) / 24;
+      cards[i].style.transform =
+        `translate3d(${x.toFixed(2)}px, ${y.toFixed(2)}px, ${z.toFixed(2)}px) ` +
+        `rotateY(${rot.toFixed(2)}deg) scale(${s.toFixed(3)})`;
+      cards[i].style.opacity = fade.toFixed(3);
+      cards[i].style.visibility = fade < 0.02 ? "hidden" : "";
+      cards[i].style.zIndex = String(1000 + Math.round(z));
+    }
+    updateUI(Math.max(0, Math.min(total - 1, Math.round(p))));
+  }
+
+  let rafQueued = false;
+  function scheduleLayout() {
+    if (rafQueued) return;
+    rafQueued = true;
+    requestAnimationFrame(() => {
+      rafQueued = false;
+      layout();
+    });
+  }
+
+  // Snap to the nearest card once scrolling goes idle mid-orbit, so the
+  // drum never rests between stops with the front window half-turned.
+  // The idle delay is deliberately lazy: a short one tugs against slow
+  // wheel/trackpad scrolling and makes the cards look like they jump.
+  let snapTimer;
+  window.addEventListener("scroll", () => {
+    scheduleLayout();
+    clearTimeout(snapTimer);
+    snapTimer = setTimeout(() => {
+      if (isDragging) return;
+      const p = progress();
+      if (p <= 0.02 || p >= total - 1.02) return;
+      const target = Math.round(p);
+      if (Math.abs(p - target) > 0.03) goTo(target);
+    }, 800);
+  }, { passive: true });
+  window.addEventListener("resize", scheduleLayout);
+
+  // ── Navigation: map card index to a page scroll position ──
+  function goTo(index) {
+    index = Math.max(0, Math.min(total - 1, index));
+    const top = carousel.getBoundingClientRect().top + window.scrollY;
+    window.scrollTo({
+      top: top + (index / (total - 1)) * scrollRange(),
+      behavior: "smooth",
+    });
+  }
+
   prevBtn.addEventListener("click", () => goTo(currentIndex - 1));
   nextBtn.addEventListener("click", () => goTo(currentIndex + 1));
 
   // ── Keyboard navigation ──
   document.addEventListener("keydown", (e) => {
-    // Only when carousel is somewhat in view
-    const rect = track.getBoundingClientRect();
+    const rect = stage.getBoundingClientRect();
     const inView = rect.top < window.innerHeight && rect.bottom > 0;
     if (!inView) return;
     if (e.key === "ArrowLeft") goTo(currentIndex - 1);
     if (e.key === "ArrowRight") goTo(currentIndex + 1);
   });
 
-  // ── Scroll-snap detection (update active on manual scroll/swipe) ──
-  let scrollTimeout;
-  track.addEventListener("scroll", () => {
-    clearTimeout(scrollTimeout);
-    scrollTimeout = setTimeout(() => {
-      // Don't override during programmatic navigation
-      if (navigating) return;
-      const trackCenter = track.scrollLeft + track.offsetWidth / 2;
-      let closest = 0;
-      let closestDist = Infinity;
-      cards.forEach((card, i) => {
-        const cardCenter = card.offsetLeft + card.offsetWidth / 2;
-        const dist = Math.abs(trackCenter - cardCenter);
-        if (dist < closestDist) {
-          closestDist = dist;
-          closest = i;
-        }
-      });
-      updateUI(closest);
-    }, 80);
-  }, { passive: true });
-
-  // ── Pointer drag (mouse + touch) ──
+  // ── Mouse drag winds the orbit (maps horizontal drag to page scroll) ──
   let isDragging = false;
-  let startX = 0;
-  let scrollStart = 0;
+  let lastX = 0;
+  let dragDistance = 0;
 
   track.addEventListener("pointerdown", (e) => {
     if (e.pointerType === "mouse") {
       isDragging = true;
-      startX = e.clientX;
-      scrollStart = track.scrollLeft;
-      track.style.scrollSnapType = "none";
-      track.style.scrollBehavior = "auto";
+      lastX = e.clientX;
+      dragDistance = 0;
       track.setPointerCapture(e.pointerId);
     }
   });
 
   track.addEventListener("pointermove", (e) => {
     if (!isDragging) return;
-    const dx = e.clientX - startX;
-    track.scrollLeft = scrollStart - dx;
+    const dx = e.clientX - lastX;
+    lastX = e.clientX;
+    dragDistance += Math.abs(dx);
+    window.scrollBy({ top: -dx * 1.5, behavior: "instant" });
   });
 
-  track.addEventListener("pointerup", (e) => {
+  const endDrag = (e) => {
     if (!isDragging) return;
     isDragging = false;
-    track.style.scrollSnapType = "x mandatory";
-    track.style.scrollBehavior = "smooth";
+    // A real drag settles on the nearest card; a plain click doesn't scroll
+    if (dragDistance > 8) goTo(Math.round(progress()));
+  };
+  track.addEventListener("pointerup", endDrag);
+  track.addEventListener("pointercancel", endDrag);
 
-    // Determine direction from drag distance and snap
-    const dx = e.clientX - startX;
-    if (Math.abs(dx) > 50) {
-      goTo(currentIndex + (dx < 0 ? 1 : -1));
-    } else {
-      goTo(currentIndex); // snap back
+  // Suppress link clicks that were actually drags
+  track.addEventListener("click", (e) => {
+    if (dragDistance > 8) {
+      e.preventDefault();
+      e.stopPropagation();
+      dragDistance = 0;
     }
-  });
-
-  track.addEventListener("pointercancel", () => {
-    isDragging = false;
-    track.style.scrollSnapType = "x mandatory";
-    track.style.scrollBehavior = "smooth";
-  });
+  }, true);
 
   // ── Initial state ──
-  updateUI(0);
-
-  // After a short delay, center the first card properly
-  requestAnimationFrame(() => {
-    goTo(0);
-  });
+  layout();
+  window.addEventListener("load", scheduleLayout);
 })();
