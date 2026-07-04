@@ -51,6 +51,47 @@
       .hero-bg-canvas {
         display: none !important;
       }
+
+      /* The project carousel is a scroll-driven, JS-positioned orbit —
+         without JS every card stacks in the same absolute box with no
+         transform, so only the last one is visible and the arrows/dots
+         are dead controls. Fall back to a plain grid of all cards. */
+      .project-carousel {
+        height: auto !important;
+      }
+      .carousel-stage {
+        position: static !important;
+        height: auto !important;
+        display: block !important;
+        overflow: visible !important;
+      }
+      .carousel-arrow,
+      .carousel-dots,
+      .carousel-counter {
+        display: none !important;
+      }
+      .project-cards {
+        position: static !important;
+        width: 100% !important;
+        height: auto !important;
+        perspective: none !important;
+        display: grid !important;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)) !important;
+        gap: 32px !important;
+        margin-bottom: 0 !important;
+      }
+      .project-card {
+        position: relative !important;
+        inset: auto !important;
+        filter: none !important;
+        transform: none !important;
+      }
+      .project-card .window-glass::before {
+        opacity: 0 !important;
+      }
+      #themeToggle {
+        display: none !important;
+      }
     </style>
   </noscript>
 
@@ -244,7 +285,7 @@
         <!-- 3: Ising Model -->
         <span class="physics-canvas-wrapper">
           <h3><a href="404.html">Ising Model</a></h3>
-          <p class="physics-equation dense">$$H = -J \sum_{\langle ij \rangle} \sigma_i \sigma_j \\ A(\mu, \nu) = \begin{cases} e^{-\beta(H_\mu - H_\nu)} & \text{if } H_\mu - H_\nu > 0, \\ 1 & \text{otherwise} \end{cases} $$</p>
+          <p class="physics-equation dense">$$ \begin{aligned} H &= -J \sum_{\langle ij \rangle} \sigma_i \sigma_j \\ A(\mu, \nu) &= \begin{cases} e^{-\beta(H_\mu - H_\nu)} & \text{if } H_\mu - H_\nu > 0, \\ 1 & \text{otherwise} \end{cases} \end{aligned} $$</p>
           <canvas id="isingSim" class="physics-canvas"></canvas>
         </span>
 
