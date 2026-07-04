@@ -810,20 +810,18 @@ footer h2::after,
   gap: 20px;
 }
 
-#example > span {
-  outline: none !important;
-}
-
-/* Making the skills category stand out or span across.
-   Base layout (also the touch / narrow / reduced-motion fallback):
+/* Base layout (also the touch / narrow / reduced-motion fallback):
    a plain responsive grid with all three categories visible. The
-   pile-and-fan behaviour is layered on top in the media query below. */
+   pile-and-fan behaviour is layered on top in the media query below.
+   outline is suppressed directly here (no longer via #example > span,
+   now that this sits outside #example) — the tabbable deck relies on
+   :focus-visible below to highlight the resting top card instead. */
 .skill-deck {
-  grid-column: 1 / -1;
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
   gap: 20px;
   margin-bottom: 16px;
+  outline: none;
 }
 
 .skill-category {
@@ -852,7 +850,13 @@ footer h2::after,
   font-weight: 700;
 }
 
+/* name + level share a row via grid-template-areas (replacing a nested
+   flex wrapper div); the bar spans both columns on the row below. */
 .skill-item {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-areas: "name level" "bar bar";
+  row-gap: 8px;
   margin-bottom: 14px;
 }
 
@@ -860,34 +864,33 @@ footer h2::after,
   margin-bottom: 0;
 }
 
-.skill-label {
-  display: flex;
-  justify-content: space-between;
-  margin-bottom: 8px;
+.skill-item > span {
+  grid-area: name;
   font-size: 0.95rem;
   font-weight: 600;
 }
 
-.skill-label span:last-child {
+.skill-item > span.skill-level {
+  grid-area: level;
   color: var(--text-muted);
   font-size: 0.85rem;
   font-weight: 500;
 }
 
+/* Track + fill collapsed into one element: the accent-gradient fill is a
+   background-image sized by data-width (via JS), with the track color
+   showing through the uncovered remainder — same visual as a nested fill
+   div, animated via background-size instead of width. */
 .skill-bar {
+  grid-area: bar;
   width: 100%;
   height: 8px;
-  background: var(--skill-track);
   border-radius: 4px;
-  overflow: hidden;
-}
-
-.skill-bar-fill {
-  height: 100%;
-  border-radius: 4px;
-  background: var(--accent-gradient);
-  width: 0%;
-  transition: width 1.5s cubic-bezier(0.19, 1, 0.22, 1);
+  background-color: var(--skill-track);
+  background-image: var(--accent-gradient);
+  background-repeat: no-repeat;
+  background-size: 0% 100%;
+  transition: background-size 1.5s cubic-bezier(0.19, 1, 0.22, 1);
 }
 
 /* ══════════════════════════════════════════════
@@ -901,7 +904,11 @@ footer h2::after,
     grid-template-columns: 1fr;      /* one cell; the cards overlap inside it */
     justify-items: center;
     align-items: start;
-    justify-self: center;
+    /* Center as a block — no longer a grid item of #example, so justify-self
+       has no effect here. margin-left/right only, so the base rule's
+       margin-bottom (gap before #example) still applies unchanged. */
+    margin-left: auto;
+    margin-right: auto;
     width: min(900px, 100%);
     gap: 0;
     padding-top: 10px;               /* headroom for the popped-up card */
@@ -917,49 +924,95 @@ footer h2::after,
     transform-origin: bottom center;
     backface-visibility: hidden;
     will-change: transform;
+    /* Smooth, non-overshoot curve here governs the RETURN to rest (the state
+       being transitioned TO wins). The old bouncy 1.56 curve overshot inward
+       on the way back — cards huddled past the pile then sprang back out,
+       a different-looking jostle each time depending on the hover path (the
+       "random realign"). The springy curve now lives only on the fan/pop
+       states below, so engagement stays lively but disengagement is calm.
+       z-index is NOT transitioned — every card holds its constant resting
+       stack (see the pop rule) so the collapse never snaps its ordering. */
     transition:
-      transform 0.55s cubic-bezier(0.34, 1.56, 0.64, 1),
+      transform 0.55s cubic-bezier(0.22, 1, 0.36, 1),
       box-shadow 0.4s ease,
       border-color 0.4s ease;
-    /* resting pile */
-    transform: translate(var(--rest-tx), var(--rest-ty)) rotate(var(--rest-rot));
+    /* Resting pile. All three states (rest / fan / pop) MUST use the same
+       transform function list — translateX translateY rotate scale — so the
+       transition interpolates each function independently. Mixing forms (a
+       combined translate() here vs translateX()+translateY() on hover) forces
+       the browser to decompose both to matrices and interpolate those, which
+       sends each card swimming back along a curved, mismatched path on
+       hover-end — the "random realign". scale(1) keeps the list aligned with
+       the popped card's scale(1.05). */
+    transform: translateX(var(--rest-tx)) translateY(var(--rest-ty)) rotate(var(--rest-rot)) scale(1);
   }
 
-  /* per-card fan geometry (--tx / --rot / --fan-ty) and resting offsets */
+  /* per-card fan geometry (--tx / --rot) and resting offsets. --fan-ty (the
+     one-card elevation above the other two once fanned) is NOT positional —
+     it's applied via .raised, which JS moves to a random card on each
+     fan-out (see main.js), so it's declared separately below. */
   .skill-deck .skill-category:nth-child(1) {
-    --tx: -116%; --rot: -6deg; --fan-ty: 0px;
+    --tx: -116%; --rot: -6deg;
     --rest-tx: -12px; --rest-ty: 5px; --rest-rot: -5deg;
     z-index: 1;
   }
   .skill-deck .skill-category:nth-child(2) {
-    --tx: 0%; --rot: 0deg; --fan-ty: -14px;
+    --tx: 0%; --rot: 0deg;
     --rest-tx: 0px; --rest-ty: 0px; --rest-rot: -1deg;
     z-index: 3;                      /* tallest category rests on top of the pile */
   }
   .skill-deck .skill-category:nth-child(3) {
-    --tx: 116%; --rot: 6deg; --fan-ty: 0px;
+    --tx: 116%; --rot: 6deg;
     --rest-tx: 12px; --rest-ty: 9px; --rest-rot: 5deg;
     z-index: 2;
+  }
+
+  /* Unconditional (not scoped to :hover/:focus-within): the raised card must
+     win stacking both while fanned AND after it collapses back to the pile —
+     otherwise the moment the deck stops being hovered, the pile falls back to
+     the hardcoded nth-child order below and Programming (z:3, highest resting
+     value) reappears on top regardless of which card was actually raised.
+     z:5 sits above the max resting z (3) but below the individually-popped
+     card's z:10, so directly hovering any single card still wins over this. */
+  .skill-deck .skill-category.raised {
+    --fan-ty: -14px;
+    z-index: 5;
   }
 
   /* fan the whole hand out on hover or keyboard focus */
   .skill-deck:hover .skill-category,
   .skill-deck:focus-within .skill-category {
-    transform: translateX(var(--tx)) translateY(var(--fan-ty)) rotate(var(--rot));
+    transform: translateX(var(--tx)) translateY(var(--fan-ty, 0px)) rotate(var(--rot)) scale(1);
+    transition-timing-function: cubic-bezier(0.34, 1.56, 0.64, 1); /* springy fan-out */
   }
 
-  /* the card under the cursor pops up, straightens and scales.
-     Declared after the fan rule so it wins at equal specificity. */
+  /* The card under the cursor pops up, straightens and scales, and is bumped
+     above its neighbours: the fan's translateX spacing isn't wide enough to
+     fully clear the scale(1.05) growth, so without this the popped card can
+     sit behind a neighbour with a lower resting z-index, letting that card's
+     text bleed through the overlap. Bumping z here can cause a brief stacking
+     snap on release (the card flipping behind the pile the instant it
+     re-collapses) — a smaller glitch than the overlap it fixes.
+     Declared after the fan rule so it wins at equal specificity. The .raised
+     variants are listed explicitly so this rule's specificity ties (and, by
+     coming later, wins) the .raised idle-priority rule above — otherwise a
+     raised card that's also directly hovered would be capped at z:5 instead
+     of reaching z:10, since ".raised" in a selector adds specificity. */
   .skill-deck .skill-category:hover,
-  .skill-deck .skill-category:focus-within {
+  .skill-deck .skill-category:focus-within,
+  .skill-deck .skill-category.raised:hover,
+  .skill-deck .skill-category.raised:focus-within {
     transform: translateX(var(--tx)) translateY(-26px) rotate(0deg) scale(1.05);
+    transition-timing-function: cubic-bezier(0.34, 1.56, 0.64, 1); /* springy pop-up */
     z-index: 10;
     box-shadow: var(--shadow-glow);
     border-color: var(--accent-1);
   }
 
-  /* the deck is tabbable; focusing it highlights the resting top card */
-  .skill-deck:focus-visible .skill-category:nth-child(2) {
+  /* the deck is tabbable; focusing it highlights whichever card is currently
+     on top of the pile — .raised, not a hardcoded nth-child, now that the
+     top card is randomized rather than always Programming. */
+  .skill-deck:focus-visible .skill-category.raised {
     box-shadow: var(--shadow-glow);
     border-color: var(--accent-1);
   }
@@ -996,15 +1049,35 @@ footer h2::after,
   align-self: flex-start;
 }
 
+/* Rendered as a pill button rather than inline text — inherits the h3's
+   uppercase/letter-spacing/size, so only the button chrome is added here. */
 .physics-canvas-wrapper h3 a {
-  color: inherit;
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 16px;
+  border-radius: 100px;
+  background: var(--skill-track);
+  border: 1px solid var(--border-color);
+  color: var(--accent-2);
   text-decoration: none;
+  box-shadow: var(--shadow-sm);
+  transition:
+    background 0.3s cubic-bezier(0.23, 1, 0.32, 1),
+    color 0.3s cubic-bezier(0.23, 1, 0.32, 1),
+    border-color 0.3s cubic-bezier(0.23, 1, 0.32, 1),
+    transform 0.2s ease;
 }
 
 .physics-canvas-wrapper h3 a:hover,
 .physics-canvas-wrapper h3 a:focus-visible {
-  text-decoration: underline;
-  text-underline-offset: 4px;
+  background: var(--accent-2);
+  border-color: var(--accent-2);
+  color: #fff;
+  transform: translateY(-1px);
+}
+
+.physics-canvas-wrapper h3 a:active {
+  transform: translateY(0);
 }
 
 .physics-equation {
@@ -1178,8 +1251,14 @@ footer h2::after,
    over the hill crest of the backdrop. */
 .project-cards {
   position: relative;
-  width: min(480px, 85vw);
-  height: clamp(440px, 70vh, 650px);
+  width: min(620px, 90vw);
+  /* Window is aspect-ratio pinned to width (620*11/18 ≈ 379px, fixed), so the
+     rest of the card height is the flex:1 body's. Ceiling is set above the
+     body's minimum content (title + 3-line description + one tag row ≈ 250px)
+     to give the body extra vertical room — the surplus sits as breathing space
+     above the margin-top:auto tag row. 78vh still shrinks the card on mid
+     heights; it can only fall below this ceiling. */
+  height: clamp(500px, 78vh, 700px);
   perspective: 1500px;
   perspective-origin: 50% 42%;
   margin-bottom: 5vh;
@@ -1254,7 +1333,11 @@ footer h2::after,
 .project-card-window {
   position: relative;
   width: 100%;
-  aspect-ratio: 16 / 11;
+  /* 18/11 keeps the arch wide and shallow. At the 620px card width the window
+     is 620*11/18 ≈ 379px tall; the height ceiling in .project-cards is tuned to
+     that plus the body content so the card reads bigger without squeezing the
+     text or reviving the bottom gap. */
+  aspect-ratio: 18 / 11;
   flex: none;
 }
 
@@ -1394,7 +1477,9 @@ footer h2::after,
 .project-card-body {
   position: relative;
   background: var(--bg-card);
-  padding: 24px 32px 32px;
+  /* Reduced bottom padding lowers the margin-top:auto tag row toward the
+     card's bottom edge (top/side padding unchanged). */
+  padding: 24px 32px 18px;
   flex: 1;
   display: flex;
   flex-direction: column;
@@ -1614,8 +1699,11 @@ footer h2::after,
 /* ── Responsive ── */
 @media (max-width: 800px) {
   .project-cards {
-    width: min(400px, 82vw);
-    height: clamp(440px, 74vh, 660px);
+    width: min(520px, 88vw);
+    /* Narrower width → shorter aspect-pinned window (~318px). Ceiling raised
+       above the body's minimum content so the body keeps extra vertical room
+       here too, matching the desktop rule. */
+    height: clamp(490px, 80vh, 625px);
   }
 
   .project-card {
@@ -1623,7 +1711,7 @@ footer h2::after,
   }
 
   .project-card-body {
-    padding: 20px 24px 24px;
+    padding: 20px 24px 16px;
   }
 
   .window-aperture {
@@ -1673,7 +1761,13 @@ footer h2::after,
    every height down to the next tier — see fullmatrix check. */
 @media (max-height: 780px) {
   .project-cards {
-    height: clamp(340px, 62vh, 650px);
+    /* Ceiling well below the old 650: here the window is the short 16/5 band
+       (~149px) and the trimmed body content runs ~175px, so the card wants
+       ~340px. 62vh alone ballooned it toward the top of this tier (card grew
+       while the window couldn't), pooling a tall gap above the tags. Capping
+       near the floor keeps the card content-sized; body stays >content so the
+       verified worst-case (six tags, long description) still never clips. */
+    height: clamp(340px, 62vh, 360px);
     margin-bottom: 2vh;
   }
 
@@ -1711,7 +1805,12 @@ footer h2::after,
 
 @media (max-height: 540px) {
   .project-cards {
-    height: clamp(300px, 58vh, 650px);
+    /* 650 was dead: 58vh of a ≤540px viewport tops out near 313px, so the
+       clamp never reached it. This tier has even less content than the 780px
+       tier above (no tags row, smaller title, no paragraph margin), so the
+       ceiling sits close to the floor — same +20px breathing-room shape as
+       that tier's fix, just lower to match the lighter content. */
+    height: clamp(300px, 58vh, 320px);
     margin-bottom: 1.5vh;
   }
 

@@ -191,8 +191,29 @@ function onDemandWhenVisible(canvas, frame, { rootMargin = "100px" } = {}) {
 // ────────────────────────────────────
 (() => {
   const reveals = document.querySelectorAll(".reveal");
-  const bars = document.querySelectorAll(".skill-bar-fill");
+  const bars = document.querySelectorAll(".skill-bar");
   const navLinks = document.querySelectorAll(".container nav ul li a");
+
+  // Proficiency word derived from each bar's data-width, then injected as a
+  // .skill-level span into the .skill-item (placed via grid-area, so DOM
+  // order doesn't matter). Keeping it here, rather than hand-written in the
+  // markup, keeps the label in sync with the bar — one source of truth per
+  // skill.
+  const levelFor = (w) =>
+    w >= 90 ? "Native"
+    : w >= 72 ? "Advanced"
+    : w >= 58 ? "Proficient"
+    : w >= 35 ? "Intermediate"
+    : "Beginner";
+
+  bars.forEach((bar) => {
+    const item = bar.closest(".skill-item");
+    if (!item) return;
+    const level = document.createElement("span");
+    level.className = "skill-level";
+    level.textContent = levelFor(Number(bar.dataset.width));
+    item.appendChild(level);
+  });
 
   let barsAnimated = false;
 
@@ -208,7 +229,7 @@ function onDemandWhenVisible(canvas, frame, { rootMargin = "100px" } = {}) {
             barsAnimated = true;
             bars.forEach((bar, i) => {
               setTimeout(() => {
-                bar.style.width = bar.dataset.width + "%";
+                bar.style.backgroundSize = bar.dataset.width + "% 100%";
               }, i * 60);
             });
           }
@@ -244,6 +265,23 @@ function onDemandWhenVisible(canvas, frame, { rootMargin = "100px" } = {}) {
 
   const sections = document.querySelectorAll(".main-content > div[id], footer h2[id='contact']");
   sections.forEach((section) => spyObserver.observe(section));
+})();
+
+// ────────────────────────────────────
+// Skill Deck — randomize which card is raised on each fan-out
+// ────────────────────────────────────
+(() => {
+  const deck = document.querySelector(".skill-deck");
+  if (!deck) return;
+  const categories = Array.from(deck.querySelectorAll(".skill-category"));
+
+  function randomizeRaised() {
+    const chosen = Math.floor(Math.random() * categories.length);
+    categories.forEach((cat, i) => cat.classList.toggle("raised", i === chosen));
+  }
+
+  deck.addEventListener("mouseenter", randomizeRaised);
+  deck.addEventListener("focusin", randomizeRaised);
 })();
 
 // ────────────────────────────────────
@@ -459,7 +497,7 @@ document.querySelectorAll('a[href^="#"]').forEach((a) => {
 
   function layout() {
     const p = progress();
-    const R0 = Math.min(track.offsetWidth * 0.95, 440);
+    const R0 = Math.min(track.offsetWidth * 1.05, 560);
     for (let i = 0; i < total; i++) {
       const d = i - p;
       const angle = d * STEP;
