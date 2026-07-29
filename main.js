@@ -292,6 +292,7 @@ function onDemandWhenVisible(canvas, frame, { rootMargin = "100px" } = {}) {
   if (!section) return;
 
   const nameEl = document.getElementById("name");
+  const subtitleEl = document.getElementById("subtitle");
   const textEl = section.querySelector(".text-reveal");
   if (!textEl) return;
 
@@ -347,8 +348,16 @@ function onDemandWhenVisible(canvas, frame, { rootMargin = "100px" } = {}) {
     nameEl.style.setProperty("--name-ty", 50 * (1 - nameP) + "px");
     nameEl.style.setProperty("--name-blur", 14 * (1 - nameP) + "px");
 
-    // Text block: 0.15 → 0.35 scroll progress
-    const blockP = easeOutQuart(clamp01((p - 0.15) / 0.2));
+    // Subtitle: 0.16 → 0.34 scroll progress
+    if (subtitleEl) {
+      const subtitleP = easeOutCubic(clamp01((p - 0.16) / 0.18));
+      subtitleEl.style.setProperty("--subtitle-opacity", subtitleP);
+      subtitleEl.style.setProperty("--subtitle-ty", 18 * (1 - subtitleP) + "px");
+      subtitleEl.style.setProperty("--subtitle-blur", 8 * (1 - subtitleP) + "px");
+    }
+
+    // Text block: 0.24 → 0.44 scroll progress
+    const blockP = easeOutQuart(clamp01((p - 0.24) / 0.2));
     textEl.style.setProperty("--text-block-opacity", blockP);
     textEl.style.setProperty("--text-block-ty", 24 * (1 - blockP) + "px");
 
