@@ -293,7 +293,9 @@ function onDemandWhenVisible(canvas, frame, { rootMargin = "100px" } = {}) {
 
   const nameEl = document.getElementById("name");
   const subtitleEl = document.getElementById("subtitle");
-  const textEl = section.querySelector(".text-reveal");
+  // Pick the text-reveal variant that matches the URL ?type= parameter
+  const urlType = new URLSearchParams(window.location.search).get("type") || "global";
+  const textEl = section.querySelector(`.text-reveal.${urlType}`) || section.querySelector(".text-reveal");
   if (!textEl) return;
 
   // Split paragraph into word spans with real whitespace between so text-align: justify works

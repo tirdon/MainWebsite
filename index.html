@@ -183,16 +183,16 @@
         const param = new URLSearchParams(window.location.search);
         const urlParam = param.get('type') || "global";
         if (urlParam === "qa") {
-          document.querySelector('.text-reveal.global').style.display = 'none';
           document.querySelector('.text-reveal.qa').style.display = 'block';
-        } else if (urlParam === "ai") {
           document.querySelector('.text-reveal.global').style.display = 'none';
+        } else if (urlParam === "ai") {
           document.querySelector('.text-reveal.ai').style.display = 'block';
+          document.querySelector('.text-reveal.global').style.display = 'none';
         } else if (urlParam === "iot") {
           document.querySelector('.text-reveal.iot').style.display = 'block';
-          document.querySelector('.text-reveal.global').style.display = 'none';
           document.querySelector('.text-reveal.qa').style.display = 'none';
           document.querySelector('.text-reveal.ai').style.display = 'none';
+          document.querySelector('.text-reveal.global').style.display = 'none';
         } 
         else { // global or embedded or any other value
           document.querySelector('.text-reveal.global').style.display = 'block';
