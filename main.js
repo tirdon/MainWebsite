@@ -302,7 +302,15 @@ function onDemandWhenVisible(canvas, frame, { rootMargin = "100px" } = {}) {
   const wordSpans = words.map((word, i) => {
     const span = document.createElement("span");
     span.className = "word";
-    span.textContent = word;
+    if (i === 0) {
+      const initial = document.createElement("span");
+      initial.className = "drop-cap";
+      initial.textContent = word.charAt(0);
+      span.appendChild(initial);
+      span.appendChild(document.createTextNode(word.slice(1)));
+    } else {
+      span.textContent = word;
+    }
     textEl.appendChild(span);
     if (i < words.length - 1) textEl.appendChild(document.createTextNode(" "));
     return span;

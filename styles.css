@@ -715,6 +715,26 @@ a:hover {
   will-change: transform, opacity;
 }
 
+/* The initial character reserves the first two rows, so text wraps beside it
+   before returning to the paragraph's normal left edge. */
+.text-reveal .drop-cap {
+  color: var(--accent-1);
+  float: left;
+  /* Just under two rows avoids the third row catching the float on rounding. */
+  font-size: 3.75em;
+  font-family: "UnifrakturMaguntia", "Old English Text MT", cursive;
+  font-weight: 700;
+  line-height: 1;
+  margin: 0 0.1em 0 0;
+  text-transform: uppercase;
+}
+
+/* The reveal needs inline-block words for transforms, except the opening word:
+   keeping it inline lets the drop cap shape the first two lines normally. */
+.text-reveal .word:first-child {
+  display: inline;
+}
+
 /* The personal-statement label follows the name into view before the
    paragraph's word cascade starts. The custom properties are driven by the
    hero scroll observer in main.js. */
@@ -854,13 +874,22 @@ footer h2::after,
    pile-and-fan behaviour is layered on top in the media query below.
    outline is suppressed directly here (no longer via #example > span,
    now that this sits outside #example) — the tabbable deck relies on
-   :focus-visible below to highlight the resting top card instead. */
+   :focus-visible below to highlight the resting top card instead.
+
+   Uses CSS Grid Lanes (masonry) where supported, with a standard grid
+   fallback for older browsers.  */
 .skill-deck {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  grid-template-columns: repeat(3, 1fr);
   gap: 20px;
   margin-bottom: 16px;
   outline: none;
+}
+
+@supports (display: grid-lanes) {
+  .skill-deck {
+    display: grid-lanes;
+  }
 }
 
 .skill-category {
@@ -895,17 +924,16 @@ footer h2::after,
   list-style: none;
 }
 
-/* Each lane sizes to its own content; Languages should not inherit the
-   taller Programming card's height. */
+/* Each category sizes to its own content; Languages should not inherit
+   the taller Programming card's height. */
 .skill-deck--with-tools .skill-category {
   height: auto;
   align-self: start;
 }
 
-.skill-lane {
-  display: grid;
-  align-content: start;
-  gap: 20px;
+/* Pin Backend Development into column 3 (under Frameworks / APIs). */
+.skill-deck--with-tools .backend-category {
+  grid-column: 3;
 }
 
 /* name + level share a row via grid-template-areas (replacing a nested
@@ -1075,11 +1103,9 @@ footer h2::after,
     border-color: var(--accent-1);
   }
 
-  /* Azure shares the Languages lane instead of occupying a second grid row,
-     so it sits directly below Languages regardless of the other cards' size. */
+  /* Related categories share columns so they remain vertically aligned. */
   .skill-deck--with-tools {
     grid-template-columns: repeat(3, minmax(0, 1fr));
-    grid-template-areas: "languages programming frameworks";
     justify-items: stretch;
     align-items: stretch;
     width: 100%;
@@ -1088,21 +1114,26 @@ footer h2::after,
     perspective: none;
   }
 
-  .skill-deck--with-tools > .skill-lane--languages { grid-area: languages; }
-  .skill-deck--with-tools > .programming-category { grid-area: programming; }
-  .skill-deck--with-tools > .frameworks-category { grid-area: frameworks; }
+  @supports (display: grid-lanes) {
+    .skill-deck--with-tools {
+      display: grid-lanes;
+    }
+  }
 
-  .skill-lane--languages .skill-category {
+  /* Column 1 cards (Languages=1st, Tools=4th) fan left */
+  .skill-deck--with-tools > .skill-category:nth-child(3n + 1) {
     --lane-x: -8px;
     --lane-rot: -3deg;
   }
 
-  .skill-deck--with-tools .programming-category {
+  /* Column 2 cards (Programming=2nd, ML=5th) stay center */
+  .skill-deck--with-tools > .skill-category:nth-child(3n + 2) {
     --lane-x: 0px;
     --lane-rot: 0deg;
   }
 
-  .skill-deck--with-tools .frameworks-category {
+  /* Column 3 cards (Frameworks=3rd, Backend=6th) fan right */
+  .skill-deck--with-tools > .skill-category:nth-child(3n) {
     --lane-x: 8px;
     --lane-rot: 3deg;
   }
@@ -1139,17 +1170,18 @@ footer h2::after,
   }
 }
 
-/* Keep the three-lane order on wide touch-only devices as well; the desktop
+/* Keep the three-column order on wide touch-only devices as well; the desktop
    enhancement above adds only motion, not a different information layout. */
 @media (min-width: 900px) {
   .skill-deck--with-tools {
     grid-template-columns: repeat(3, minmax(0, 1fr));
-    grid-template-areas: "languages programming frameworks";
   }
 
-  .skill-deck--with-tools > .skill-lane--languages { grid-area: languages; }
-  .skill-deck--with-tools > .programming-category { grid-area: programming; }
-  .skill-deck--with-tools > .frameworks-category { grid-area: frameworks; }
+  @supports (display: grid-lanes) {
+    .skill-deck--with-tools {
+      display: grid-lanes;
+    }
+  }
 }
 
 /* Physics canvases */
@@ -1313,6 +1345,7 @@ footer h2::after,
 #experience ol li:hover,
 #education ol li:hover,
 #extracurricular ol li:hover {
+  border-color: var(--accent-1);
   box-shadow: var(--shadow-md);
   transform: translateY(-2px);
 }
@@ -2140,6 +2173,7 @@ footer #footer span:hover svg {
 /* ══════════════════════════════════════════════
    Scroll-Reveal Animations
    ══════════════════════════════════════════════ */
+
 .reveal {
   opacity: 0;
   transform: translateY(50px);

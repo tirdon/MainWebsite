@@ -11,9 +11,7 @@
   <!-- Google Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link
-    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Instrument+Serif:ital@0;1&display=swap"
-    rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=UnifrakturMaguntia&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/dreampulse/computer-modern-web-font@master/fonts.css" />
 
   <!-- KaTeX for Math Rendering -->
@@ -181,6 +179,27 @@
           and explore potential collaborations.
         </p>
       </div>
+      <script>
+        const param = new URLSearchParams(window.location.search);
+        const urlParam = param.get('type') || "global";
+        if (urlParam === "qa") {
+          document.querySelector('.text-reveal.global').style.display = 'none';
+          document.querySelector('.text-reveal.qa').style.display = 'block';
+        } else if (urlParam === "ai") {
+          document.querySelector('.text-reveal.global').style.display = 'none';
+          document.querySelector('.text-reveal.ai').style.display = 'block';
+        } else if (urlParam === "iot") {
+          document.querySelector('.text-reveal.iot').style.display = 'block';
+          document.querySelector('.text-reveal.global').style.display = 'none';
+          document.querySelector('.text-reveal.qa').style.display = 'none';
+          document.querySelector('.text-reveal.ai').style.display = 'none';
+        } 
+        else { // global or embedded or any other value
+          document.querySelector('.text-reveal.global').style.display = 'block';
+          document.querySelector('.text-reveal.qa').style.display = 'none';
+          document.querySelector('.text-reveal.ai').style.display = 'none';
+        }
+      </script>
       <span id="aboutref"> </span>
     </div>
 
@@ -189,138 +208,134 @@
       <h2>Expertise <span class="latin">(Peritiae)</span></h2>
       <!-- 1: Animated Skill Bars -->
       <div class="skill-deck skill-deck--with-tools" tabindex="0" aria-label="Skill categories">
-        <div class="skill-lane skill-lane--languages">
-          <div class="skill-category">
-            <h3>Languages</h3>
-            <ul>
-            <li class="skill-item">
-              <span>Thai</span>
-              <div class="skill-bar" data-width="100"></div>
-            </li>
-            <li class="skill-item">
-              <span>English</span>
-              <div class="skill-bar" data-width="70"></div>
-            </li>
-            <!-- <li class="skill-item">
-              <span>Laos</span>
-              <div class="skill-bar" data-width="69"></div>
-            </li> -->
-            <li class="skill-item">
-              <span>Japanese</span>
-              <div class="skill-bar" data-width="20"></div>
-            </li>
-            </ul>
-          </div>
-
-          <div class="skill-category">
-            <h3>Tools</h3>
-            <ul>
-            <li class="skill-item">
-              <span>Microsoft Azure</span>
-            </li>
-            <li class="skill-item">
-              <span>Microsoft Office</span>
-            </li>
-            <li class="skill-item">
-              <span>Google Cloud</span>
-            </li>
-            <li class="skill-item">
-              <span>ANSYS</span>
-            </li>
-            <li class="skill-item">
-              <span>ANSYS</span>
-            </li>
-            <li class="skill-item">
-              <span>MATLAB</span>
-            </li>
-            <li class="skill-item">
-              <span>LaTeX</span>
-            </li>
-            <li class="skill-item">
-              <span>Mathematica</span>
-            </li>
-            </ul>
-          </div>
-        </div>
-
-        <div class="skill-category programming-category">
-          <h3>Programming</h3>
+        <!-- Column 1: Languages -->
+        <div class="skill-category" style="grid-column: 1;">
+          <h3>Languages</h3>
           <ul>
           <li class="skill-item">
-            <span>Swift</span>
+            <span>Thai</span>
+            <div class="skill-bar" data-width="100"></div>
+          </li>
+          <li class="skill-item">
+            <span>English</span>
+            <div class="skill-bar" data-width="70"></div>
+          </li>
+          <!-- <li class="skill-item">
+            <span>Laos</span>
+            <div class="skill-bar" data-width="69"></div>
+          </li> -->
+          <li class="skill-item">
+            <span>Japanese</span>
+            <div class="skill-bar" data-width="20"></div>
+          </li>
+          </ul>
+        </div>
+
+        <!-- Column 2: Programming -->
+        <div class="skill-category programming-category" style="grid-column: 2;">
+          <h3>Programming</h3>
+          <ul>
+          <li class="skill-item"><span>Swift</span>
             <div class="skill-bar" data-width="88"></div>
           </li>
-          <li class="skill-item">
-            <span>C / C++</span>
+          <li class="skill-item"><span>C / C++</span>
             <div class="skill-bar" data-width="75"></div>
           </li>
-          <li class="skill-item">
-            <span>Python</span>
+          <li class="skill-item"><span>Python / MicroPython</span>
             <div class="skill-bar" data-width="68"></div>
           </li>
-          <li class="skill-item">
-            <span>JavaScript</span>
+          <li class="skill-item"><span>JavaScript</span>
             <div class="skill-bar" data-width="62"></div>
           </li>
-          <li class="skill-item">
-            <span>Julia</span>
+          <li class="skill-item"><span>Julia</span>
             <div class="skill-bar" data-width="50"></div>
           </li>
-          <li class="skill-item">
-            <span>Wolfram Language</span>
+          <li class="skill-item"><span>GNU Octave / MATLAB</span>
+            <div class="skill-bar" data-width="50"></div>
+          </li>
+          <li class="skill-item"><span>Wolfram Language</span>
+            <div class="skill-bar" data-width="65"></div>
+          </li>
+          <li class="skill-item"><span>SQL</span>
             <div class="skill-bar" data-width="55"></div>
           </li>
-          <li class="skill-item">
-            <span>SQL</span>
-            <div class="skill-bar" data-width="55"></div>
-          </li>
-          <li class="skill-item">
-            <span>Markup</span>
+          <li class="skill-item"><span>Markup</span>
             <div class="skill-bar" data-width="70"></div>
           </li>
           </ul>
         </div>
 
-        <div class="skill-category frameworks-category">
+        <!-- Column 3: Frameworks / APIs -->
+        <div class="skill-category frameworks-category" style="grid-column: 3;">
           <h3>Frameworks / APIs</h3>
           <ul>
-          <li class="skill-item">
-            <span>CUDA</span>
+          <li class="skill-item"><span>CUDA</span>
             <div class="skill-bar" data-width="65"></div>
           </li>
-          <li class="skill-item">
-            <span>Metal API</span>
+          <li class="skill-item"><span>Metal API</span>
             <div class="skill-bar" data-width="79"></div>
           </li>
-          <li class="skill-item">
-            <span>WebGPU</span>
+          <li class="skill-item"><span>WebGPU</span>
             <div class="skill-bar" data-width="75"></div>
           </li>
-          <li class="skill-item">
-            <span>Web API</span>
+          <li class="skill-item"><span>Web API</span>
             <div class="skill-bar" data-width="72"></div>
           </li>
-          <li class="skill-item">
-            <span>SwiftUI</span>
+          <li class="skill-item"><span>SwiftUI</span>
             <div class="skill-bar" data-width="80"></div>
           </li>
-          <li class="skill-item">
-            <span>Bun</span>
-            <div class="skill-bar" data-width="68"></div>
-          </li>
-          <li class="skill-item">
-            <span>Hummingbird (Swift)</span>
-            <div class="skill-bar" data-width="60"></div>
-          </li>
-          <li class="skill-item">
-            <span>Manim</span>
+          <li class="skill-item"><span>Manim</span>
             <div class="skill-bar" data-width="82"></div>
           </li>
           </ul>
         </div>
 
-      </div>
+        <!-- Column 1: Tools (flows under Languages) -->
+        <div class="skill-category" style="grid-column: 1;">
+          <h3>Tools</h3>
+          <ul>
+          <li class="skill-item"><span>Microsoft Azure</span></li>
+          <li class="skill-item"><span>Microsoft Office</span></li>
+          <li class="skill-item"><span>Google Cloud</span></li>
+          <li class="skill-item"><span>ANSYS HFSS</span></li>
+          <li class="skill-item"><span>MATLAB</span></li>
+          <li class="skill-item"><span>LaTeX</span></li>
+          <li class="skill-item"><span>Mathematica</span></li>
+          </ul>
+        </div>
 
+        <!-- Column 2: Machine Learning (flows under Programming) -->
+        <div class="skill-category" style="grid-column: 2;">
+          <h3>Machine Learning</h3>
+          <ul>
+          <li class="skill-item"><span>TensorFlow</span>
+            <div class="skill-bar" data-width="60"></div>
+          </li>
+          <li class="skill-item"><span>Torch</span>
+            <div class="skill-bar" data-width="55"></div>
+          </li>
+          <li class="skill-item"><span>MLX</span>
+            <div class="skill-bar" data-width="40"></div>
+          </li>
+          <li class="skill-item"><span>MetalPerformanceShadersGraphs</span>
+            <div class="skill-bar" data-width="90"></div>
+          </li>
+          </ul>
+        </div>
+
+        <!-- Column 3: Backend Development (under Frameworks / APIs) -->
+        <div class="skill-category backend-category" style="grid-column: 3;">
+          <h3>Backend Development</h3>
+          <ul>
+          <li class="skill-item"><span>Emscripten</span></li>
+          <li class="skill-item"><span>Node.js</span></li>
+          <li class="skill-item"><span>Bun</span></li>
+          <li class="skill-item"><span>SwiftWASM</span></li>
+          <li class="skill-item"><span>Vapour (Swift)</span></li>
+          <li class="skill-item"><span>Hummingbird (Swift)</span></li>
+          </ul>
+        </div>
+      </div>
     </div>
 
     <!-- ═══════════ EXPERIENCE ═══════════ -->
@@ -332,10 +347,17 @@
       <!-- <div class="empty-state">&mdash; Adventūra mox incipit &mdash;</div> -->
       <ol type="I">
         <li>
-          <strong>IT Support Specialist, GFPT Thailand</strong><br />
+          <strong>IT Support Specialist, GFPT Nichirei (Thailand) Co., Ltd.</strong><br />
           <em>August 2026 - Present</em>
           <p>
             Provide technical support for IT infrastructure, troubleshoot hardware and software issues, and assist in maintaining network security and system performance.
+          </p>
+        </li>
+        <li>
+          <strong>Self-Employed, Freelancer</strong><br />
+          <em>July 2025 – July 2026</em>
+          <p>
+            Developed and maintained custom software solutions for clients, including web applications, automation scripts, and data analysis tools. Collaborated with clients to understand their needs and deliver tailored solutions.
           </p>
         </li>
         <li>
@@ -365,7 +387,7 @@
       <h2>Extracurricular Activities <span class="latin">(Activitates Extra Curriculares)</span></h2>
       <ol type="I">
         <li>
-          <strong>Physics Club, School.</strong><br />
+          <strong>Physics Club, School, Nan.</strong><br />
           <em>January 2024</em>
           <p>
             Active member of the Physics Club, participating in organizing
@@ -374,7 +396,7 @@
           </p>
         </li>
         <li>
-          <strong>Programming Club, School.</strong><br />
+          <strong>Programming Club, School, Chang Mai.</strong><br />
           <em>December 2022</em>
           <p>
             Engaged in collaborative coding projects, hackathons, and
