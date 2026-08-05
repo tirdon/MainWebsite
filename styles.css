@@ -1323,9 +1323,9 @@ footer h2::after,
   padding-left: 2.5rem;
 }
 
-#experience ol li,
-#education ol li,
-#extracurricular ol li {
+#experience ol > li,
+#education ol > li,
+#extracurricular ol > li {
   padding: 20px 24px;
   background: var(--bg-card);
   border-radius: 12px;
@@ -1335,31 +1335,146 @@ footer h2::after,
   position: relative;
 }
 
-#experience ol li::marker,
-#education ol li::marker,
-#extracurricular ol li::marker {
+#experience ol > li::marker,
+#education ol > li::marker,
+#extracurricular ol > li::marker {
   color: var(--accent-1);
   font-weight: 700;
 }
 
-#experience ol li:hover,
-#education ol li:hover,
-#extracurricular ol li:hover {
+#experience ol > li:hover,
+#education ol > li:hover,
+#extracurricular ol > li:hover {
   border-color: var(--accent-1);
   box-shadow: var(--shadow-md);
   transform: translateY(-2px);
 }
 
-#experience ol li em,
-#education ol li em,
-#extracurricular ol li em {
+#experience ol > li em,
+#education ol > li em,
+#extracurricular ol > li em {
   color: var(--text-muted);
   font-size: 0.88rem;
 }
 
-#experience ol li + li,
-#extracurricular ol li + li {
+#experience ol > li + li,
+#education ol > li + li,
+#extracurricular ol > li + li {
   margin-top: 16px;
+}
+
+/* ══════════════════════════════════════════════
+   Experience & Timeline Graphic Emoji Lists (No Hover Action)
+   ══════════════════════════════════════════════ */
+#experience ol li ul,
+#education ol li ul,
+#extracurricular ol li ul,
+ul.experience-highlights {
+  list-style: none;
+  padding: 0;
+  margin: 16px 0 0 0;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 14px;
+}
+
+@supports (display: grid-lanes) {
+  #experience ol li ul,
+  #education ol li ul,
+  #extracurricular ol li ul,
+  ul.experience-highlights {
+    display: grid-lanes;
+  }
+}
+
+@media (max-width: 640px) {
+  #experience ol li ul,
+  #education ol li ul,
+  #extracurricular ol li ul,
+  ul.experience-highlights {
+    grid-template-columns: 1fr;
+  }
+}
+
+#experience ol li ul li,
+#education ol li ul li,
+#extracurricular ol li ul li,
+ul.experience-highlights li {
+  display: grid;
+  grid-template-columns: 38px 1fr;
+  gap: 4px 14px;
+  align-items: start;
+  padding: 16px 18px;
+  margin: 0 !important;
+  background: var(--canvas-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  box-shadow: none !important;
+  transform: none !important;
+  transition: none !important;
+  cursor: default !important;
+  pointer-events: auto;
+}
+
+#experience ol li ul li:hover,
+#education ol li ul li:hover,
+#extracurricular ol li ul li:hover,
+ul.experience-highlights li:hover {
+  transform: none !important;
+  box-shadow: none !important;
+  border-color: var(--border-color) !important;
+  background: var(--canvas-bg) !important;
+  cursor: default !important;
+}
+
+/* Emoji bullet rendered purely via CSS ::before pseudo-element */
+#experience ol li ul li::before,
+#education ol li ul li::before,
+#extracurricular ol li ul li::before,
+ul.experience-highlights li::before {
+  content: "🛠️";
+  grid-column: 1;
+  grid-row: 1 / span 2;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  min-width: 38px;
+  min-height: 38px;
+  border-radius: 10px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  font-size: 1.2rem;
+  line-height: 1;
+  box-shadow: var(--shadow-sm);
+  user-select: none;
+  flex-shrink: 0;
+}
+
+#experience ol li ul li strong,
+#education ol li ul li strong,
+#extracurricular ol li ul li strong,
+ul.experience-highlights li strong {
+  grid-column: 2;
+  grid-row: 1;
+  display: block;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1.35;
+}
+
+#experience ol li ul li p,
+#education ol li ul li p,
+#extracurricular ol li ul li p,
+ul.experience-highlights li p {
+  grid-column: 2;
+  grid-row: 2;
+  margin: 0;
+  font-size: 0.86rem;
+  color: var(--text-secondary);
+  line-height: 1.45;
 }
 
 /* Linked documents */
