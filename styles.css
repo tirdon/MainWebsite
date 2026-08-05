@@ -249,9 +249,7 @@ a:hover {
   white-space: nowrap;
 }
 
-/* Latin translation drops to its own line beneath the word, wherever
-   the nav shows it (desktop pills above 1200px, mobile flyout below
-   900px) — scoped here so it doesn't touch .latin on section headings. */
+/* Nav latin: stacked below the word (scoped to nav only) */
 .container nav ul li a .latin {
   display: block;
   margin-left: 0;
@@ -715,12 +713,10 @@ a:hover {
   will-change: transform, opacity;
 }
 
-/* The initial character reserves the first two rows, so text wraps beside it
-   before returning to the paragraph's normal left edge. */
+/* Drop cap: floats left, spans two rows */
 .text-reveal .drop-cap {
   color: var(--accent-1);
   float: left;
-  /* Just under two rows avoids the third row catching the float on rounding. */
   font-size: 3.75em;
   font-family: "UnifrakturMaguntia", "Old English Text MT", cursive;
   font-weight: 700;
@@ -729,15 +725,12 @@ a:hover {
   text-transform: uppercase;
 }
 
-/* The reveal needs inline-block words for transforms, except the opening word:
-   keeping it inline lets the drop cap shape the first two lines normally. */
+/* First word stays inline so the drop cap shapes lines correctly */
 .text-reveal .word:first-child {
   display: inline;
 }
 
-/* The personal-statement label follows the name into view before the
-   paragraph's word cascade starts. The custom properties are driven by the
-   hero scroll observer in main.js. */
+/* Subtitle label — custom properties driven by scroll observer */
 #subtitle {
   display: flex;
   align-items: center;
@@ -825,13 +818,7 @@ a:hover {
   animation: fadeIn 0.8s ease-out;
 }
 
-#skills h2,
-#experience h2,
-#education h2,
-#project h2,
-#hobbies h2,
-footer h2,
-#about h2 {
+.section-heading {
   font-size: 2.6rem;
   font-weight: 400;
   margin-bottom: 36px;
@@ -842,13 +829,7 @@ footer h2,
   line-height: 1.1;
 }
 
-#skills h2::after,
-#experience h2::after,
-#education h2::after,
-#project h2::after,
-#hobbies h2::after,
-footer h2::after,
-#about h2::after {
+.section-heading::after {
   content: "";
   position: absolute;
   bottom: 0;
@@ -869,15 +850,7 @@ footer h2::after,
   gap: 20px;
 }
 
-/* Base layout (also the touch / narrow / reduced-motion fallback):
-   a plain responsive grid with all three categories visible. The
-   pile-and-fan behaviour is layered on top in the media query below.
-   outline is suppressed directly here (no longer via #example > span,
-   now that this sits outside #example) — the tabbable deck relies on
-   :focus-visible below to highlight the resting top card instead.
-
-   Uses CSS Grid Lanes (masonry) where supported, with a standard grid
-   fallback for older browsers.  */
+/* Skill deck base: responsive grid with masonry fallback */
 .skill-deck {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -980,24 +953,19 @@ footer h2::after,
 }
 
 /* ══════════════════════════════════════════════
-   Skill Deck — a tidy pile that fans into a hand on hover.
-   Progressive enhancement: applied only on hover-capable, wide,
-   motion-OK viewports. Touch / narrow / reduced-motion keep the base
-   .skill-deck grid above, so every category stays visible & readable.
+   Skill Deck — Pile-and-Fan (progressive enhancement)
    ══════════════════════════════════════════════ */
 @media (hover: hover) and (min-width: 1000px) and (prefers-reduced-motion: no-preference) {
   .skill-deck {
     grid-template-columns: 1fr;      /* one cell; the cards overlap inside it */
     justify-items: center;
     align-items: start;
-    /* Center as a block — no longer a grid item of #example, so justify-self
-       has no effect here. margin-left/right only, so the base rule's
-       margin-bottom (gap before #example) still applies unchanged. */
+    /* Center the deck block */
     margin-left: auto;
     margin-right: auto;
     width: min(900px, 100%);
     gap: 0;
-    padding-top: 10px;               /* headroom for the popped-up card */
+    padding-top: 10px;
     perspective: 1400px;
   }
 
@@ -1010,33 +978,16 @@ footer h2::after,
     transform-origin: bottom center;
     backface-visibility: hidden;
     will-change: transform;
-    /* Smooth, non-overshoot curve here governs the RETURN to rest (the state
-       being transitioned TO wins). The old bouncy 1.56 curve overshot inward
-       on the way back — cards huddled past the pile then sprang back out,
-       a different-looking jostle each time depending on the hover path (the
-       "random realign"). The springy curve now lives only on the fan/pop
-       states below, so engagement stays lively but disengagement is calm.
-       z-index is NOT transitioned — every card holds its constant resting
-       stack (see the pop rule) so the collapse never snaps its ordering. */
+    /* Smooth return-to-rest curve (springy curve only on fan/pop states) */
     transition:
       transform 0.55s cubic-bezier(0.22, 1, 0.36, 1),
       box-shadow 0.4s ease,
       border-color 0.4s ease;
-    /* Resting pile. All three states (rest / fan / pop) MUST use the same
-       transform function list — translateX translateY rotate scale — so the
-       transition interpolates each function independently. Mixing forms (a
-       combined translate() here vs translateX()+translateY() on hover) forces
-       the browser to decompose both to matrices and interpolate those, which
-       sends each card swimming back along a curved, mismatched path on
-       hover-end — the "random realign". scale(1) keeps the list aligned with
-       the popped card's scale(1.05). */
+    /* All states use the same transform function list for clean interpolation */
     transform: translateX(var(--rest-tx)) translateY(var(--rest-ty)) rotate(var(--rest-rot)) scale(1);
   }
 
-  /* per-card fan geometry (--tx / --rot) and resting offsets. --fan-ty (the
-     one-card elevation above the other two once fanned) is NOT positional —
-     it's applied via .raised, which JS moves to a random card on each
-     fan-out (see main.js), so it's declared separately below. */
+  /* Per-card fan geometry; .raised elevation is applied by JS */
   .skill-deck .skill-category:nth-child(1) {
     --tx: -116%; --rot: -6deg;
     --rest-tx: -12px; --rest-ty: 5px; --rest-rot: -5deg;
@@ -1045,7 +996,7 @@ footer h2::after,
   .skill-deck .skill-category:nth-child(2) {
     --tx: 0%; --rot: 0deg;
     --rest-tx: 0px; --rest-ty: 0px; --rest-rot: -1deg;
-    z-index: 3;                      /* tallest category rests on top of the pile */
+    z-index: 3;
   }
   .skill-deck .skill-category:nth-child(3) {
     --tx: 116%; --rot: 6deg;
@@ -1053,13 +1004,7 @@ footer h2::after,
     z-index: 2;
   }
 
-  /* Unconditional (not scoped to :hover/:focus-within): the raised card must
-     win stacking both while fanned AND after it collapses back to the pile —
-     otherwise the moment the deck stops being hovered, the pile falls back to
-     the hardcoded nth-child order below and Programming (z:3, highest resting
-     value) reappears on top regardless of which card was actually raised.
-     z:5 sits above the max resting z (3) but below the individually-popped
-     card's z:10, so directly hovering any single card still wins over this. */
+  /* Raised card wins stacking in both fanned and collapsed states (z:5 > rest max z:3) */
   .skill-deck .skill-category.raised {
     --fan-ty: -14px;
     z-index: 5;
@@ -1072,18 +1017,7 @@ footer h2::after,
     transition-timing-function: cubic-bezier(0.34, 1.56, 0.64, 1); /* springy fan-out */
   }
 
-  /* The card under the cursor pops up, straightens and scales, and is bumped
-     above its neighbours: the fan's translateX spacing isn't wide enough to
-     fully clear the scale(1.05) growth, so without this the popped card can
-     sit behind a neighbour with a lower resting z-index, letting that card's
-     text bleed through the overlap. Bumping z here can cause a brief stacking
-     snap on release (the card flipping behind the pile the instant it
-     re-collapses) — a smaller glitch than the overlap it fixes.
-     Declared after the fan rule so it wins at equal specificity. The .raised
-     variants are listed explicitly so this rule's specificity ties (and, by
-     coming later, wins) the .raised idle-priority rule above — otherwise a
-     raised card that's also directly hovered would be capped at z:5 instead
-     of reaching z:10, since ".raised" in a selector adds specificity. */
+  /* Popped card: straightens, scales, and wins z-index over neighbours */
   .skill-deck .skill-category:hover,
   .skill-deck .skill-category:focus-within,
   .skill-deck .skill-category.raised:hover,
@@ -1095,9 +1029,7 @@ footer h2::after,
     border-color: var(--accent-1);
   }
 
-  /* the deck is tabbable; focusing it highlights whichever card is currently
-     on top of the pile — .raised, not a hardcoded nth-child, now that the
-     top card is randomized rather than always Programming. */
+  /* Focus-visible highlights the current top card */
   .skill-deck:focus-visible .skill-category.raised {
     box-shadow: var(--shadow-glow);
     border-color: var(--accent-1);
@@ -1161,7 +1093,6 @@ footer h2::after,
   .skill-deck--with-tools .skill-category:focus-within,
   .skill-deck--with-tools .skill-category.raised:hover,
   .skill-deck--with-tools .skill-category.raised:focus-within {
-    /* Preserve the deck's original card-pop motion for direct interaction. */
     transform: translateX(var(--lane-x, 0px)) translateY(-26px) rotate(0deg) scale(1.05);
     transition-timing-function: cubic-bezier(0.34, 1.56, 0.64, 1);
     z-index: 10;
@@ -1170,8 +1101,7 @@ footer h2::after,
   }
 }
 
-/* Keep the three-column order on wide touch-only devices as well; the desktop
-   enhancement above adds only motion, not a different information layout. */
+/* Three-column layout also on wide touch-only devices */
 @media (min-width: 900px) {
   .skill-deck--with-tools {
     grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -1248,14 +1178,7 @@ footer h2::after,
 
 .physics-equation {
   align-self: stretch;
-  /* min-height, not height: the Ising card's equation is a line break
-     plus a \begin{cases} brace — several KaTeX rows tall, well past a
-     single equation line. A fixed height + overflow-y:hidden clipped
-     it (and sliced clean through the stretchy brace glyph). Letting it
-     grow keeps short single-line equations exactly as before (still
-     centered in a 72px-tall box) while tall ones simply take more
-     room — CSS Grid's default row-stretch already keeps card heights
-     matched within a row. */
+  /* min-height allows tall KaTeX equations (e.g. Ising cases brace) to grow */
   min-height: 72px;
   margin: 0 0 14px;
   color: var(--text-muted);
@@ -1267,16 +1190,11 @@ footer h2::after,
   overflow-y: visible;
   display: flex;
   align-items: center;
-  /* safe center: centers short equations same as before, but falls
-     back to start-alignment when content is wider than the box — a
-     plain "center" here would center the OVERFLOW too, hiding equal
-     slices off both edges instead of just the right side. */
+  /* safe center: avoids centering overflow (which hides both edges) */
   justify-content: safe center;
 }
 
-/* Ising's cases-brace formula is a touch wider than its card even at
-   the shared font-size (the other five fit fine at 0.74rem) — shrink
-   just this one rather than the whole set. */
+/* Dense variant for wide formulas (e.g. Ising) */
 .physics-equation.dense {
   font-size: 0.62rem;
 }
@@ -1316,16 +1234,12 @@ footer h2::after,
   border-radius: 12px;
 }
 
-#experience ol,
-#education ol,
-#extracurricular ol {
+.timeline-list {
   list-style-type: upper-roman;
   padding-left: 2.5rem;
 }
 
-#experience ol > li,
-#education ol > li,
-#extracurricular ol > li {
+.timeline-list > li {
   padding: 20px 24px;
   background: var(--bg-card);
   border-radius: 12px;
@@ -1335,41 +1249,30 @@ footer h2::after,
   position: relative;
 }
 
-#experience ol > li::marker,
-#education ol > li::marker,
-#extracurricular ol > li::marker {
+.timeline-list > li::marker {
   color: var(--accent-1);
   font-weight: 700;
 }
 
-#experience ol > li:hover,
-#education ol > li:hover,
-#extracurricular ol > li:hover {
+.timeline-list > li:hover {
   border-color: var(--accent-1);
   box-shadow: var(--shadow-md);
   transform: translateY(-2px);
 }
 
-#experience ol > li em,
-#education ol > li em,
-#extracurricular ol > li em {
+.timeline-list > li em {
   color: var(--text-muted);
   font-size: 0.88rem;
 }
 
-#experience ol > li + li,
-#education ol > li + li,
-#extracurricular ol > li + li {
+.timeline-list > li + li {
   margin-top: 16px;
 }
 
 /* ══════════════════════════════════════════════
-   Experience & Timeline Graphic Emoji Lists (No Hover Action)
+   Emoji Lists (No Hover Action)
    ══════════════════════════════════════════════ */
-#experience ol li ul,
-#education ol li ul,
-#extracurricular ol li ul,
-ul.experience-highlights {
+.emoji-list {
   list-style: none;
   padding: 0;
   margin: 16px 0 0 0;
@@ -1379,27 +1282,18 @@ ul.experience-highlights {
 }
 
 @supports (display: grid-lanes) {
-  #experience ol li ul,
-  #education ol li ul,
-  #extracurricular ol li ul,
-  ul.experience-highlights {
+  .emoji-list {
     display: grid-lanes;
   }
 }
 
 @media (max-width: 640px) {
-  #experience ol li ul,
-  #education ol li ul,
-  #extracurricular ol li ul,
-  ul.experience-highlights {
+  .emoji-list {
     grid-template-columns: 1fr;
   }
 }
 
-#experience ol li ul li,
-#education ol li ul li,
-#extracurricular ol li ul li,
-ul.experience-highlights li {
+.emoji-list li {
   display: grid;
   grid-template-columns: 38px 1fr;
   gap: 4px 14px;
@@ -1416,10 +1310,7 @@ ul.experience-highlights li {
   pointer-events: auto;
 }
 
-#experience ol li ul li:hover,
-#education ol li ul li:hover,
-#extracurricular ol li ul li:hover,
-ul.experience-highlights li:hover {
+.emoji-list li:hover {
   transform: none !important;
   box-shadow: none !important;
   border-color: var(--border-color) !important;
@@ -1427,11 +1318,8 @@ ul.experience-highlights li:hover {
   cursor: default !important;
 }
 
-/* Emoji bullet rendered purely via CSS ::before pseudo-element */
-#experience ol li ul li::before,
-#education ol li ul li::before,
-#extracurricular ol li ul li::before,
-ul.experience-highlights li::before {
+/* Emoji bullet via CSS ::before */
+.emoji-list li::before {
   content: "🛠️";
   grid-column: 1;
   grid-row: 1 / span 2;
@@ -1452,10 +1340,7 @@ ul.experience-highlights li::before {
   flex-shrink: 0;
 }
 
-#experience ol li ul li strong,
-#education ol li ul li strong,
-#extracurricular ol li ul li strong,
-ul.experience-highlights li strong {
+.emoji-list li strong {
   grid-column: 2;
   grid-row: 1;
   display: block;
@@ -1465,10 +1350,7 @@ ul.experience-highlights li strong {
   line-height: 1.35;
 }
 
-#experience ol li ul li p,
-#education ol li ul li p,
-#extracurricular ol li ul li p,
-ul.experience-highlights li p {
+.emoji-list li p {
   grid-column: 2;
   grid-row: 2;
   margin: 0;
@@ -1574,8 +1456,7 @@ ul.experience-highlights li p {
    Project Cards — Swipe Carousel
    ══════════════════════════════════════════════ */
 
-/* Tall scroll driver — the extra height is what the orbit consumes.
-   The stage inside stays pinned while scroll winds the cone-spring. */
+/* Tall scroll driver for the orbit animation */
 .project-carousel {
   position: relative;
   margin-top: 32px;
@@ -1594,34 +1475,20 @@ ul.experience-highlights li p {
   overflow: hidden;
 }
 
-/* 3D space for the orbit — cards are positioned by JS transforms.
-   The drum floats slightly high in the stage so the windows ring sits
-   over the hill crest of the backdrop. */
+/* 3D orbit container — cards positioned by JS transforms */
 .project-cards {
   position: relative;
   width: min(620px, 90vw);
-  /* Window is aspect-ratio pinned to width (620*11/18 ≈ 379px, fixed), so the
-     rest of the card height is the flex:1 body's. Ceiling is set above the
-     body's minimum content (title + 3-line description + one tag row ≈ 250px)
-     to give the body extra vertical room — the surplus sits as breathing space
-     above the margin-top:auto tag row. 78vh still shrinks the card on mid
-     heights; it can only fall below this ceiling. */
+  /* Height clamp: window is aspect-ratio pinned, body gets remaining space */
   height: clamp(500px, 78vh, 700px);
   perspective: 1500px;
   perspective-origin: 50% 42%;
   margin-bottom: 5vh;
-  /* .project-card fills this box via inset:0, so its window+body split
-     comes entirely from this height. Without flex-shrink:0, the column
-     flex in .carousel-stage silently squeezed this below its clamp
-     floor on short viewports — the window (aspect-ratio pinned to
-     width) held its size and ate the body, so text vanished. */
+  /* Prevent carousel-stage flex from squeezing below clamp floor */
   flex-shrink: 0;
 }
 
-/* Individual card — a plastered wall pierced by a real window. The card
-   itself is transparent; the "wall" is painted by the aperture's huge
-   spread shadow (clipped by overflow) so the arch stays a true hole
-   revealing the fixed mountain canvas behind the page. */
+/* Card: transparent base with wall painted by aperture's spread shadow */
 .project-card {
   position: absolute;
   inset: 0;
@@ -1681,10 +1548,6 @@ ul.experience-highlights li p {
 .project-card-window {
   position: relative;
   width: 100%;
-  /* 18/11 keeps the arch wide and shallow. At the 620px card width the window
-     is 620*11/18 ≈ 379px tall; the height ceiling in .project-cards is tuned to
-     that plus the body content so the card reads bigger without squeezing the
-     text or reviving the bottom gap. */
   aspect-ratio: 18 / 11;
   flex: none;
 }
@@ -1704,9 +1567,7 @@ ul.experience-highlights li p {
   color: var(--text-muted);
 }
 
-/* The aperture is a transparent Roman arch. Shadow stack, outside-in:
-   frame edge → frame → frame edge → wall fill (huge spread, clipped by
-   the card) → inset reveal shadows for recessed depth. */
+/* Roman arch aperture — shadow stack creates frame + wall fill */
 .window-aperture {
   position: absolute;
   top: 26px;
@@ -1724,8 +1585,7 @@ ul.experience-highlights li p {
     inset 0 14px 32px rgba(10, 8, 6, 0.18);
 }
 
-/* Glass: permanent faint tint + reflection so the pane reads as glazing
-   even if the backdrop ever fails to render. */
+/* Glass tint + reflection */
 .window-glass {
   position: absolute;
   inset: 0;
@@ -1752,10 +1612,7 @@ ul.experience-highlights li p {
   opacity: 0;
 }
 
-/* Glint sweep across the pane when hovering the active card.
-   will-change keeps this on a persistent compositor layer — promoting it
-   lazily on hover re-rasterizes the 3D-transformed card and shows up as
-   a visible jump. */
+/* Glint sweep on hover — will-change prevents re-rasterization jump */
 .window-glass::after {
   content: "";
   position: absolute;
@@ -1825,8 +1682,6 @@ ul.experience-highlights li p {
 .project-card-body {
   position: relative;
   background: var(--bg-card);
-  /* Reduced bottom padding lowers the margin-top:auto tag row toward the
-     card's bottom edge (top/side padding unchanged). */
   padding: 24px 32px 18px;
   flex: 1;
   display: flex;
@@ -1874,15 +1729,7 @@ ul.experience-highlights li p {
   line-height: 1.72;
   margin-bottom: 24px;
   letter-spacing: 0.01em;
-  /* .project-cards has a hard height clamp (it doesn't grow to fit
-     content), so without a cap the longest description ("Embedded
-     Swift Interop") overflows .project-card's own overflow:hidden —
-     at full desktop height, not just on short viewports.
-     No flex-grow: -webkit-line-clamp only truncates at a clean line
-     boundary when the box is sized to its own (clamped) content —
-     stretching it via flex-grow confuses the legacy line-count algorithm
-     and lets extra lines bleed past the ellipsis. Tags' margin-top:auto
-     already handles pushing the tag row to the bottom of the card. */
+  /* Line-clamp to prevent overflow in fixed-height card */
   display: -webkit-box;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 3;
@@ -1895,11 +1742,7 @@ ul.experience-highlights li p {
   flex-wrap: wrap;
   gap: 8px;
   margin-top: auto;
-  /* .project-cards has a hard height clamp, so a card with enough tags
-     to wrap past one row (e.g. Embedded Swift Interop's six) would
-     push past the card's own overflow:hidden and get its second row
-     guillotined at the edge. Capping to one row makes that deliberate:
-     overflow tags are cleanly hidden rather than half-sliced. */
+  /* Cap to one row in fixed-height card */
   max-height: 34px;
   overflow: hidden;
 }
@@ -2098,23 +1941,9 @@ ul.experience-highlights li p {
   }
 }
 
-/* Short viewports: as the pinned stage loses vertical room, shrink the
-   window band first (its aspect-ratio is pinned to width, so it won't
-   yield on its own) and reclaim spacing, so the body text always keeps
-   a readable minimum instead of being squeezed to nothing.
-   One threshold, not two: an earlier lighter-touch tier here left a
-   band (roughly 660–780px) where the container had shrunk but the
-   text/window hadn't yet, and the worst-case card (six tags, long
-   description) clipped. Verified empirically against every card at
-   every height down to the next tier — see fullmatrix check. */
+/* Short viewports: shrink window band, reclaim space for body text */
 @media (max-height: 780px) {
   .project-cards {
-    /* Ceiling well below the old 650: here the window is the short 16/5 band
-       (~149px) and the trimmed body content runs ~175px, so the card wants
-       ~340px. 62vh alone ballooned it toward the top of this tier (card grew
-       while the window couldn't), pooling a tall gap above the tags. Capping
-       near the floor keeps the card content-sized; body stays >content so the
-       verified worst-case (six tags, long description) still never clips. */
     height: clamp(340px, 62vh, 360px);
     margin-bottom: 2vh;
   }
@@ -2153,11 +1982,6 @@ ul.experience-highlights li p {
 
 @media (max-height: 540px) {
   .project-cards {
-    /* 650 was dead: 58vh of a ≤540px viewport tops out near 313px, so the
-       clamp never reached it. This tier has even less content than the 780px
-       tier above (no tags row, smaller title, no paragraph margin), so the
-       ceiling sits close to the floor — same +20px breathing-room shape as
-       that tier's fix, just lower to match the lighter content. */
     height: clamp(300px, 58vh, 320px);
     margin-bottom: 1.5vh;
   }
@@ -2183,10 +2007,7 @@ ul.experience-highlights li p {
     margin-bottom: 0;
   }
 
-  /* No room left for a tag row at this height — the card's own
-     overflow:hidden (needed for the window illusion) would otherwise
-     silently guillotine it mid-pill. Title + description carry the
-     card; hiding this is a deliberate call, not a clipping accident. */
+  /* Tags hidden at this height to avoid clipping */
   .project-card-tags {
     display: none;
   }
@@ -2390,8 +2211,7 @@ footer #footer span:hover svg {
     border-radius: 12px;
   }
 
-  /* Counteract the ≤1200px rule that hides .latin entirely — the
-     flyout has room to show it, stacked under the word. */
+  /* Re-show .latin in flyout (hidden by ≤1200px rule) */
   .container nav ul li a .latin {
     display: block;
   }
