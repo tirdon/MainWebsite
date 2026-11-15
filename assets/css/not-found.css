@@ -1,0 +1,39 @@
+.poem {
+  max-width: 800px;
+  margin: 40px 0;
+  font-family: "Computer Modern Serif", "Latin Modern Roman", serif;
+  line-height: 2;
+}
+
+.poem br {
+  margin-bottom: 1em;
+  display: block;
+  content: "";
+}
+
+.poem-line {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.poem-rhyme {
+  color: var(--text-secondary);
+  font-style: italic;
+}
+
+@media (max-width: 600px) {
+  .poem-line {
+    flex-direction: column;
+    gap: 0;
+  }
+}
+
+/* The error page is static; its content does not need scroll revelation. */
+.reveal {
+  opacity: 1;
+  transform: none;
+  filter: none;
+}

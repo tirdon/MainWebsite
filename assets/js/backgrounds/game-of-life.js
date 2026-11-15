@@ -1,3 +1,5 @@
+import { resizeCanvas, isDark, runWhenVisible } from "../core/runtime.js";
+
 (() => { // HERO BACKGROUND: Conway's Game of Life
   const canvas = document.getElementById("lifeSim");
   if (!canvas) return;
@@ -104,28 +106,14 @@
     }
   }
 
-  let isInView = true;
-  const viewObserver = new IntersectionObserver((entries) => {
-    const wasInView = isInView;
-    isInView = entries[0].isIntersecting;
-    if (isInView && !wasInView) {
-      lastStep = performance.now();
-      requestAnimationFrame(loop);
-    }
-  });
-  viewObserver.observe(canvas);
-
-  function loop(ts) {
-    if (!isInView) return;
-    if (ts - lastStep >= STEP_MS) {
-      step();
-      lastStep = ts;
-    }
-    draw();
-    requestAnimationFrame(loop);
-  }
-
   resize();
   window.addEventListener("resize", resize);
-  requestAnimationFrame(loop);
+  runWhenVisible(canvas, () => {
+    const now = performance.now();
+    if (now - lastStep >= STEP_MS) {
+      step();
+      lastStep = now;
+    }
+    draw();
+  });
 })();
